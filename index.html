@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>待ち合わせマップ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body { margin:0; height:100%; font-family: system-ui, -apple-system, "Yu Gothic", sans-serif; }
+    #map { height:100vh; width:100vw; }
+    .panel {
+      position:absolute; z-index:1000; left:12px; top:12px; background:white;
+      padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
+      max-width:280px; font-size:16px;
+    }
+    .login { right:12px; margin:auto; top:30%; max-width:330px; }
+    input, button { font-size:20px; padding:10px; margin-top:8px; width:100%; box-sizing:border-box; }
+    button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
+    #memberPanel { display:none; min-width:160px; }
+    #memberList { margin:6px 0 0 0; padding-left:20px; }
+    .hint { font-size:14px; color:#555; line-height:1.4; }
+    .marker-letter {
+      width:34px; height:34px; border-radius:50%; background:#1769aa; color:white;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; font-weight:bold; border:3px solid white;
+      box-shadow:0 1px 8px rgba(0,0,0,.35);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="memberPanel" class="panel">
+    <b>ログイン中</b>
+    <ul id="memberList"></ul>
+  </div>
+
+  <div id="loginPanel" class="panel login">
+    <h2 style="margin:0 0 8px 0;">待ち合わせマップ</h2>
+    <div id="passwordStep">
+      <div>パスワードを入力してください</div>
+      <input id="passwordInput" type="password" placeholder="パスワード">
+      <button onclick="checkPassword()">次へ</button>
+      <div id="passwordError" class="hint" style="color:#c00;"></div>
+    </div>
+    <div id="nameStep" style="display:none;">
+      <div>お名前を入力してください</div>
+      <input id="nameInput" type="text" placeholder="例：石塚">
+      <button onclick="startApp()">地図に参加</button>
+      <div class="hint">位置情報の許可を求められたら「許可」を押してください。</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    // ===== ここを自分のFirebase設定に置き換えてください =====
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    // ================================================
+
+    const PASSWORD = "m340";
+    const ROOM_ID = "default-room";
+
+    let app = null;
+    let db = null;
+    let myId = localStorage.getItem("machiawase_my_id") || crypto.randomUUID();
+    localStorage.setItem("machiawase_my_id", myId);
+
+    let myName = "";
+    let map = L.map('map').setView([35.681236, 139.767125], 14);
+    let markers = {};
+    let firebaseReady = false;
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      maxZoom: 19
+    }).addTo(map);
+
+    function isFirebaseConfigured() {
+      return firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.databaseURL.includes("firebaseio.com");
+    }
+
+    function initFirebase() {
+      if (!isFirebaseConfigured()) {
+        console.warn("Firebase is not configured. Local marker only mode.");
+        return false;
+      }
+      app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+      firebaseReady = true;
+      return true;
+    }
+
+    function firstChar(name) {
+      return (name || "?").trim().charAt(0) || "?";
+    }
+
+    function makeLetterIcon(name) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="marker-letter">${escapeHtml(firstChar(name))}</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function updateMarker(id, person) {
+      if (!person || typeof person.lat !== "number" || typeof person.lng !== "number") return;
+      const latlng = [person.lat, person.lng];
+      if (!markers[id]) {
+        markers[id] = L.marker(latlng, { icon: makeLetterIcon(person.name) }).addTo(map);
+      } else {
+        markers[id].setLatLng(latlng);
+        markers[id].setIcon(makeLetterIcon(person.name));
+      }
+      markers[id].bindPopup(escapeHtml(person.name || "名前なし"));
+    }
+
+    function updateMemberList(people) {
+      const ul = document.getElementById("memberList");
+      ul.innerHTML = "";
+      Object.values(people || {}).sort((a,b)=>(a.name||"").localeCompare(b.name||"", 'ja')).forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = p.name || "名前なし";
+        ul.appendChild(li);
+      });
+    }
+
+    function listenPeople() {
+      if (!firebaseReady) return;
+      const peopleRef = ref(db, `rooms/${ROOM_ID}/people`);
+      onValue(peopleRef, snap => {
+        const people = snap.val() || {};
+        updateMemberList(people);
+        Object.keys(markers).forEach(id => {
+          if (!people[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+        });
+        Object.entries(people).forEach(([id, person]) => updateMarker(id, person));
+      });
+    }
+
+    function publishPosition(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      map.setView([lat, lng], 17);
+
+      const myPerson = { name: myName, lat, lng, updatedAt: Date.now() };
+      updateMarker(myId, myPerson);     // Firebase未設定でも、自分のマーカーは表示する
+      updateMemberList({ [myId]: myPerson });
+
+      if (firebaseReady) {
+        const myRef = ref(db, `rooms/${ROOM_ID}/people/${myId}`);
+        set(myRef, { name: myName, lat, lng, updatedAt: serverTimestamp() });
+        onDisconnect(myRef).remove();
+      }
+    }
+
+    window.checkPassword = function() {
+      const pw = document.getElementById("passwordInput").value;
+      if (pw === PASSWORD) {
+        document.getElementById("passwordStep").style.display = "none";
+        document.getElementById("nameStep").style.display = "block";
+        document.getElementById("passwordError").textContent = "";
+      } else {
+        document.getElementById("passwordError").textContent = "パスワードが違います。";
+      }
+    }
+
+    window.startApp = function() {
+      myName = document.getElementById("nameInput").value.trim();
+      if (!myName) { alert("名前を入力してください"); return; }
+
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("memberPanel").style.display = "block";
+      initFirebase();
+      listenPeople();
+
+      if (!navigator.geolocation) {
+        alert("この端末では位置情報が使えません。");
+        return;
+      }
+      navigator.geolocation.watchPosition(
+        publishPosition,
+        err => alert("位置情報を取得できませんでした。ブラウザの位置情報許可を確認してください。"),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+      );
+    }
+  </script>
+</body>
+</html>
