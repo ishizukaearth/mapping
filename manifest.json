@@ -1,0 +1,8 @@
+{
+  "name": "待ち合わせマップ",
+  "short_name": "待ち合わせ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1769aa"
+}
