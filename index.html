@@ -87,10 +87,10 @@
       maxZoom: 19
     }).addTo(map);
 
-    function isFirebaseConfigured() {
-      return firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.databaseURL.includes("firebaseio.com");
-    }
-
+   function isFirebaseConfigured() {
+    return firebaseConfig.apiKey !== "YOUR_API_KEY"
+    && firebaseConfig.databaseURL !== "YOUR_DATABASE_URL";
+   }
     function initFirebase() {
       if (!isFirebaseConfigured()) {
         console.warn("Firebase is not configured. Local marker only mode.");
