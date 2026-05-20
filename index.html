@@ -3,21 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>待ち合わせマップ</title>
+  <title>ももの会　集合アプリ</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-title" content="ももの会　集合アプリ">
+  <meta name="application-name" content="ももの会　集合アプリ">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body { margin:0; height:100%; font-family: system-ui, -apple-system, "Yu Gothic", sans-serif; }
     #map { height:100vh; width:100vw; }
+    #appTitle {
+      position:absolute; z-index:1001; left:12px; right:12px; top:8px;
+      background:white; padding:10px 12px; border-radius:12px;
+      box-shadow:0 2px 12px rgba(0,0,0,.25);
+      font-size:22px; font-weight:bold; text-align:center;
+    }
     .panel {
       position:absolute; z-index:1000; background:white;
       padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
       font-size:16px;
     }
-    .login { left:12px; right:12px; margin:auto; top:25%; max-width:330px; }
-    #memberPanel { display:none; left:12px; top:12px; min-width:170px; max-width:260px; }
-    #meetingPanel { display:none; right:12px; top:12px; width:300px; max-width:calc(100vw - 48px); }
+    .login { left:12px; right:12px; margin:auto; top:22%; max-width:330px; }
+    #memberPanel { display:none; left:12px; top:70px; min-width:170px; max-width:260px; }
+    #meetingPanel { display:none; right:12px; top:70px; width:300px; max-width:calc(100vw - 48px); }
     #meetingSummaryRow { display:flex; align-items:flex-start; gap:8px; }
     #meetingSummaryText { flex:1; min-width:0; }
     #meetingEditButton { width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
@@ -42,6 +53,7 @@
       box-shadow:0 1px 8px rgba(0,0,0,.35);
     }
     @media (max-width: 700px) {
+      #appTitle { font-size:20px; }
       #meetingPanel { left:12px; right:12px; top:auto; bottom:12px; width:auto; max-height:45vh; overflow:auto; }
       #memberPanel { max-width:180px; }
     }
@@ -49,6 +61,7 @@
 </head>
 <body>
   <div id="map"></div>
+  <div id="appTitle">ももの会　集合アプリ</div>
 
   <div id="memberPanel" class="panel">
     <b>ログイン中</b>
@@ -74,7 +87,7 @@
   </div>
 
   <div id="loginPanel" class="panel login">
-    <h2 style="margin:0 0 8px 0;">待ち合わせマップ</h2>
+    <h2 style="margin:0 0 8px 0;">ももの会　集合アプリ</h2>
     <div id="passwordStep">
       <div>パスワードを入力してください</div>
       <input id="passwordInput" type="password" placeholder="パスワード">
