@@ -18,6 +18,10 @@
     .login { left:12px; right:12px; margin:auto; top:25%; max-width:330px; }
     #memberPanel { display:none; left:12px; top:12px; min-width:170px; max-width:260px; }
     #meetingPanel { display:none; right:12px; top:12px; width:300px; max-width:calc(100vw - 48px); }
+    #meetingSummaryRow { display:flex; align-items:flex-start; gap:8px; }
+    #meetingSummaryText { flex:1; min-width:0; }
+    #meetingEditButton { width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
+    #meetingForm { margin-top:8px; }
     #memberList { margin:6px 0 0 0; padding-left:20px; }
     input, button { font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box; }
     button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
@@ -53,13 +57,20 @@
   </div>
 
   <div id="meetingPanel" class="panel">
-    <b>集合場所・日時</b>
-    <div class="hint" id="meetingInfo">未設定</div>
-    <input id="meetingPlaceInput" type="text" placeholder="例：三鷹駅北口">
-    <input id="meetingTimeInput" type="datetime-local">
-    <button onclick="saveMeetingBySearch()">集合場所を登録</button>
-    <button class="secondary small" onclick="saveMeetingAtMapCenter()">地図の中心を集合場所にする</button>
-    <div class="hint">住所・駅名で探せない時は、地図を動かして「地図の中心を集合場所にする」を押してください。</div>
+    <div id="meetingSummaryRow">
+      <div id="meetingSummaryText">
+        <b>集合場所・日時</b>
+        <div class="hint" id="meetingInfo">未設定</div>
+      </div>
+      <button id="meetingEditButton" class="secondary" onclick="editMeeting()" style="display:none;">訂正</button>
+    </div>
+    <div id="meetingForm">
+      <input id="meetingPlaceInput" type="text" placeholder="例：三鷹駅北口">
+      <input id="meetingTimeInput" type="datetime-local">
+      <button id="meetingSearchButton" onclick="searchOrCompleteMeeting()">集合場所を登録</button>
+      <button class="secondary small" onclick="selectMeetingAtMapCenter()">地図の中心を集合場所にする</button>
+      <div class="hint" id="meetingHint">1回目の「集合場所を登録」で地図検索、2回目で入力完了です。住所・駅名で探せない時は、地図を動かして「地図の中心を集合場所にする」を押してください。</div>
+    </div>
   </div>
 
   <div id="loginPanel" class="panel login">
@@ -107,6 +118,9 @@
     let map = L.map('map').setView([35.681236, 139.767125], 14);
     let markers = {};
     let meetingMarker = null;
+    let currentMeeting = null;
+    let pendingMeeting = null;
+    let meetingSearchDone = false;
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
@@ -190,10 +204,24 @@
       });
     }
 
+    function setMeetingFormVisible(visible) {
+      document.getElementById("meetingForm").style.display = visible ? "block" : "none";
+      document.getElementById("meetingEditButton").style.display = visible ? "none" : "inline-block";
+    }
+
+    function resetMeetingSearchState() {
+      pendingMeeting = null;
+      meetingSearchDone = false;
+      document.getElementById("meetingSearchButton").textContent = "集合場所を登録";
+      document.getElementById("meetingHint").textContent = "1回目の「集合場所を登録」で地図検索、2回目で入力完了です。住所・駅名で探せない時は、地図を動かして「地図の中心を集合場所にする」を押してください。";
+    }
+
     function updateMeeting(meeting) {
+      currentMeeting = meeting || null;
       const info = document.getElementById("meetingInfo");
       if (!meeting || typeof meeting.lat !== "number" || typeof meeting.lng !== "number") {
         info.textContent = "未設定";
+        setMeetingFormVisible(true);
         if (meetingMarker) { map.removeLayer(meetingMarker); meetingMarker = null; }
         return;
       }
@@ -206,6 +234,7 @@
         meetingMarker.setLatLng(latlng);
       }
       meetingMarker.bindPopup(`<b>集合場所</b><br>${escapeHtml(meeting.place || "") }<br>${escapeHtml(formatMeetingTime(meeting.time))}`);
+      setMeetingFormVisible(false);
     }
 
     function listenPeople() {
@@ -308,12 +337,45 @@
       document.getElementById("nameStep").style.display = "none";
     };
 
-    window.saveMeetingAtMapCenter = function() {
-      const center = map.getCenter();
-      saveMeeting(center.lat, center.lng, document.getElementById("meetingPlaceInput").value.trim() || "地図で指定した場所");
+    window.editMeeting = function() {
+      if (currentMeeting) {
+        document.getElementById("meetingPlaceInput").value = currentMeeting.place || "";
+        document.getElementById("meetingTimeInput").value = currentMeeting.time || "";
+      }
+      resetMeetingSearchState();
+      setMeetingFormVisible(true);
     };
 
-    window.saveMeetingBySearch = async function() {
+    function previewMeeting(lat, lng, place) {
+      const time = document.getElementById("meetingTimeInput").value;
+      pendingMeeting = { place, time, lat, lng, updatedAt: Date.now(), updatedBy: myName || "" };
+      const latlng = [lat, lng];
+      if (!meetingMarker) {
+        meetingMarker = L.marker(latlng, { icon: makeMeetingIcon() }).addTo(map);
+      } else {
+        meetingMarker.setLatLng(latlng);
+      }
+      meetingMarker.bindPopup(`<b>集合場所候補</b><br>${escapeHtml(place || "") }<br>${escapeHtml(formatMeetingTime(time))}`).openPopup();
+      map.setView(latlng, 17);
+      meetingSearchDone = true;
+      document.getElementById("meetingSearchButton").textContent = "入力完了";
+      document.getElementById("meetingHint").textContent = "地図上の「集」マーカーを確認し、よければもう一度「入力完了」を押してください。";
+    }
+
+    window.selectMeetingAtMapCenter = function() {
+      const place = document.getElementById("meetingPlaceInput").value.trim() || "地図で指定した場所";
+      const center = map.getCenter();
+      previewMeeting(center.lat, center.lng, place);
+    };
+
+    window.searchOrCompleteMeeting = async function() {
+      if (meetingSearchDone && pendingMeeting) {
+        saveMeeting(pendingMeeting.lat, pendingMeeting.lng, pendingMeeting.place);
+        resetMeetingSearchState();
+        setMeetingFormVisible(false);
+        return;
+      }
+
       const place = document.getElementById("meetingPlaceInput").value.trim();
       if (!place) { alert("集合場所を入力してください"); return; }
       const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(place);
@@ -326,8 +388,7 @@
         }
         const lat = Number(data[0].lat);
         const lng = Number(data[0].lon);
-        saveMeeting(lat, lng, place);
-        map.setView([lat, lng], 17);
+        previewMeeting(lat, lng, place);
       } catch(e) {
         alert("場所検索に失敗しました。地図を動かして『地図の中心を集合場所にする』を使ってください。");
       }
