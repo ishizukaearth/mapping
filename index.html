@@ -67,9 +67,9 @@
     <div id="meetingForm">
       <input id="meetingPlaceInput" type="text" placeholder="例：三鷹駅北口">
       <input id="meetingTimeInput" type="datetime-local">
-      <button id="meetingSearchButton" onclick="searchOrCompleteMeeting()">集合場所を登録</button>
+      <button id="meetingSearchButton" onclick="searchOrCompleteMeeting()">集合場所検索</button>
       <button class="secondary small" onclick="selectMeetingAtMapCenter()">地図の中心を集合場所にする</button>
-      <div class="hint" id="meetingHint">1回目の「集合場所を登録」で地図検索、2回目で入力完了です。住所・駅名で探せない時は、地図を動かして「地図の中心を集合場所にする」を押してください。</div>
+      <div class="hint" id="meetingHint">1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。</div>
     </div>
   </div>
 
@@ -212,8 +212,8 @@
     function resetMeetingSearchState() {
       pendingMeeting = null;
       meetingSearchDone = false;
-      document.getElementById("meetingSearchButton").textContent = "集合場所を登録";
-      document.getElementById("meetingHint").textContent = "1回目の「集合場所を登録」で地図検索、2回目で入力完了です。住所・駅名で探せない時は、地図を動かして「地図の中心を集合場所にする」を押してください。";
+      document.getElementById("meetingSearchButton").textContent = "集合場所検索";
+      document.getElementById("meetingHint").textContent = "1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。";
     }
 
     function updateMeeting(meeting) {
@@ -358,8 +358,8 @@
       meetingMarker.bindPopup(`<b>集合場所候補</b><br>${escapeHtml(place || "") }<br>${escapeHtml(formatMeetingTime(time))}`).openPopup();
       map.setView(latlng, 17);
       meetingSearchDone = true;
-      document.getElementById("meetingSearchButton").textContent = "入力完了";
-      document.getElementById("meetingHint").textContent = "地図上の「集」マーカーを確認し、よければもう一度「入力完了」を押してください。";
+      document.getElementById("meetingSearchButton").textContent = "集合場所登録";
+      document.getElementById("meetingHint").textContent = "地図上の「集」マーカーを確認し、よければ「集合場所登録」を押してください。";
     }
 
     window.selectMeetingAtMapCenter = function() {
@@ -383,14 +383,18 @@
         const res = await fetch(url, { headers: { "Accept": "application/json" } });
         const data = await res.json();
         if (!data || data.length === 0) {
-          alert("場所が見つかりませんでした。地図を動かして『地図の中心を集合場所にする』を使ってください。");
+          const center = map.getCenter();
+          previewMeeting(center.lat, center.lng, place);
+          alert("場所が見つかりませんでした。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
           return;
         }
         const lat = Number(data[0].lat);
         const lng = Number(data[0].lon);
         previewMeeting(lat, lng, place);
       } catch(e) {
-        alert("場所検索に失敗しました。地図を動かして『地図の中心を集合場所にする』を使ってください。");
+        const center = map.getCenter();
+        previewMeeting(center.lat, center.lng, place);
+        alert("場所検索に失敗しました。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
       }
     };
 
