@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>待ち合わせマップ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body { margin:0; height:100%; font-family: system-ui, -apple-system, "Yu Gothic", sans-serif; }
+    #map { height:100vh; width:100vw; }
+    .panel {
+      position:absolute; z-index:1000; background:white;
+      padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
+      font-size:16px;
+    }
+    .login { left:12px; right:12px; margin:auto; top:25%; max-width:330px; }
+    #memberPanel { display:none; left:12px; top:12px; min-width:170px; max-width:260px; }
+    #meetingPanel { display:none; right:12px; top:12px; width:300px; max-width:calc(100vw - 48px); }
+    #meetingSummaryRow { display:flex; align-items:flex-start; gap:8px; }
+    #meetingSummaryText { flex:1; min-width:0; }
+    #meetingEditButton { width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
+    #meetingForm { margin-top:8px; }
+    #memberList { margin:6px 0 0 0; padding-left:20px; }
+    input, button { font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box; }
+    button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
+    .secondary { background:#666; }
+    .danger { background:#b00020; }
+    .small { font-size:14px; padding:7px; }
+    .hint { font-size:14px; color:#555; line-height:1.4; }
+    .marker-letter {
+      width:34px; height:34px; border-radius:50%; background:#1769aa; color:white;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; font-weight:bold; border:3px solid white;
+      box-shadow:0 1px 8px rgba(0,0,0,.35);
+    }
+    .meeting-marker {
+      width:42px; height:42px; border-radius:50%; background:#d00000; color:white;
+      display:flex; align-items:center; justify-content:center;
+      font-size:24px; font-weight:bold; border:3px solid white;
+      box-shadow:0 1px 8px rgba(0,0,0,.35);
+    }
+    @media (max-width: 700px) {
+      #meetingPanel { left:12px; right:12px; top:auto; bottom:12px; width:auto; max-height:45vh; overflow:auto; }
+      #memberPanel { max-width:180px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="memberPanel" class="panel">
+    <b>ログイン中</b>
+    <ul id="memberList"></ul>
+    <button class="danger small" onclick="logoutApp()">ログアウト</button>
+  </div>
+
+  <div id="meetingPanel" class="panel">
+    <div id="meetingSummaryRow">
+      <div id="meetingSummaryText">
+        <b>集合場所・日時</b>
+        <div class="hint" id="meetingInfo">未設定</div>
+      </div>
+      <button id="meetingEditButton" class="secondary" onclick="editMeeting()" style="display:none;">訂正</button>
+    </div>
+    <div id="meetingForm">
+      <input id="meetingPlaceInput" type="text" placeholder="例：三鷹駅北口">
+      <input id="meetingTimeInput" type="datetime-local">
+      <button id="meetingSearchButton" onclick="searchOrCompleteMeeting()">集合場所検索</button>
+      <button class="secondary small" onclick="selectMeetingAtMapCenter()">地図の中心を集合場所にする</button>
+      <div class="hint" id="meetingHint">1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。</div>
+    </div>
+  </div>
+
+  <div id="loginPanel" class="panel login">
+    <h2 style="margin:0 0 8px 0;">待ち合わせマップ</h2>
+    <div id="passwordStep">
+      <div>パスワードを入力してください</div>
+      <input id="passwordInput" type="password" placeholder="パスワード">
+      <button onclick="checkPassword()">次へ</button>
+      <div id="passwordError" class="hint" style="color:#c00;"></div>
+    </div>
+    <div id="nameStep" style="display:none;">
+      <div>お名前を入力してください</div>
+      <input id="nameInput" type="text" placeholder="例：石塚">
+      <button onclick="startApp()">地図に参加</button>
+      <div class="hint">位置情報の許可を求められたら「許可」を押してください。</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, set, onValue, onDisconnect, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZ8dIyrDGfBdmBbJy3z62Fhzm1EjIxJiw",
+      authDomain: "member-location-apr25.firebaseapp.com",
+      databaseURL: "https://member-location-apr25-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "member-location-apr25",
+      storageBucket: "member-location-apr25.firebasestorage.app",
+      messagingSenderId: "327278757807",
+      appId: "1:327278757807:web:464f344f331d32bb0fd15a"
+    };
+
+    const PASSWORD = "m340";
+    const ROOM_ID = "default-room";
+
+    let app = null;
+    let db = null;
+    let firebaseReady = false;
+    let watchId = null;
+
+    let myId = localStorage.getItem("machiawase_my_id") || crypto.randomUUID();
+    localStorage.setItem("machiawase_my_id", myId);
+    let myName = "";
+
+    let map = L.map('map').setView([35.681236, 139.767125], 14);
+    let markers = {};
+    let meetingMarker = null;
+    let currentMeeting = null;
+    let pendingMeeting = null;
+    let meetingSearchDone = false;
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      maxZoom: 19
+    }).addTo(map);
+
+    function isFirebaseConfigured() {
+      return !!(
+        firebaseConfig &&
+        firebaseConfig.apiKey &&
+        firebaseConfig.databaseURL &&
+        !firebaseConfig.apiKey.includes("YOUR_") &&
+        !firebaseConfig.databaseURL.includes("YOUR_")
+      );
+    }
+
+    function initFirebase() {
+      if (firebaseReady) return true;
+      if (!isFirebaseConfigured()) {
+        console.warn("Firebase is not configured. Local marker only mode.");
+        return false;
+      }
+      app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+      firebaseReady = true;
+      return true;
+    }
+
+    function firstChar(name) {
+      return (name || "?").trim().charAt(0) || "?";
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function makeLetterIcon(name) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="marker-letter">${escapeHtml(firstChar(name))}</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+    }
+
+    function makeMeetingIcon() {
+      return L.divIcon({
+        className: "",
+        html: `<div class="meeting-marker">集</div>`,
+        iconSize: [46, 46],
+        iconAnchor: [23, 23]
+      });
+    }
+
+    function formatMeetingTime(value) {
+      if (!value) return "日時未設定";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function updateMarker(id, person) {
+      if (!person || typeof person.lat !== "number" || typeof person.lng !== "number") return;
+      const latlng = [person.lat, person.lng];
+      if (!markers[id]) {
+        markers[id] = L.marker(latlng, { icon: makeLetterIcon(person.name) }).addTo(map);
+      } else {
+        markers[id].setLatLng(latlng);
+        markers[id].setIcon(makeLetterIcon(person.name));
+      }
+      markers[id].bindPopup(escapeHtml(person.name || "名前なし"));
+    }
+
+    function updateMemberList(people) {
+      const ul = document.getElementById("memberList");
+      ul.innerHTML = "";
+      Object.values(people || {}).sort((a,b)=>(a.name||"").localeCompare(b.name||"", 'ja')).forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = p.name || "名前なし";
+        ul.appendChild(li);
+      });
+    }
+
+    function setMeetingFormVisible(visible) {
+      document.getElementById("meetingForm").style.display = visible ? "block" : "none";
+      document.getElementById("meetingEditButton").style.display = visible ? "none" : "inline-block";
+    }
+
+    function resetMeetingSearchState() {
+      pendingMeeting = null;
+      meetingSearchDone = false;
+      document.getElementById("meetingSearchButton").textContent = "集合場所検索";
+      document.getElementById("meetingHint").textContent = "1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。";
+    }
+
+    function updateMeeting(meeting) {
+      currentMeeting = meeting || null;
+      const info = document.getElementById("meetingInfo");
+      if (!meeting || typeof meeting.lat !== "number" || typeof meeting.lng !== "number") {
+        info.textContent = "未設定";
+        setMeetingFormVisible(true);
+        if (meetingMarker) { map.removeLayer(meetingMarker); meetingMarker = null; }
+        return;
+      }
+      const text = `${meeting.place || "集合場所"} / ${formatMeetingTime(meeting.time)}`;
+      info.textContent = text;
+      const latlng = [meeting.lat, meeting.lng];
+      if (!meetingMarker) {
+        meetingMarker = L.marker(latlng, { icon: makeMeetingIcon() }).addTo(map);
+      } else {
+        meetingMarker.setLatLng(latlng);
+      }
+      meetingMarker.bindPopup(`<b>集合場所</b><br>${escapeHtml(meeting.place || "") }<br>${escapeHtml(formatMeetingTime(meeting.time))}`);
+      setMeetingFormVisible(false);
+    }
+
+    function listenPeople() {
+      if (!firebaseReady) return;
+      const peopleRef = ref(db, `rooms/${ROOM_ID}/people`);
+      onValue(peopleRef, snap => {
+        const people = snap.val() || {};
+        updateMemberList(people);
+        Object.keys(markers).forEach(id => {
+          if (!people[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+        });
+        Object.entries(people).forEach(([id, person]) => updateMarker(id, person));
+      });
+    }
+
+    function listenMeeting() {
+      if (!firebaseReady) return;
+      const meetingRef = ref(db, `rooms/${ROOM_ID}/meeting`);
+      onValue(meetingRef, snap => updateMeeting(snap.val()));
+    }
+
+    function publishPosition(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      map.setView([lat, lng], 17);
+
+      const myPerson = { name: myName, lat, lng, updatedAt: Date.now() };
+      updateMarker(myId, myPerson);
+      updateMemberList({ [myId]: myPerson });
+
+      if (firebaseReady) {
+        const myRef = ref(db, `rooms/${ROOM_ID}/people/${myId}`);
+        set(myRef, { name: myName, lat, lng, updatedAt: serverTimestamp() });
+        onDisconnect(myRef).remove();
+      }
+    }
+
+    function handleGeoError(error) {
+      let msg = "位置情報を取得できませんでした。";
+      if (error.code === 1) {
+        msg = "位置情報が許可されていません。iPhoneの設定でSafariの位置情報を許可してください。";
+      } else if (error.code === 2) {
+        msg = "現在位置を判定できませんでした。屋外または窓際で再試行してください。";
+      } else if (error.code === 3) {
+        msg = "位置情報の取得が時間切れになりました。もう一度ログインしてください。";
+      }
+      alert(msg);
+    }
+
+    function startWatchingLocation() {
+      if (!navigator.geolocation) {
+        alert("この端末では位置情報が使えません。");
+        return;
+      }
+      const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+      navigator.geolocation.getCurrentPosition(publishPosition, handleGeoError, options);
+      watchId = navigator.geolocation.watchPosition(publishPosition, handleGeoError, options);
+    }
+
+    window.checkPassword = function() {
+      const pw = document.getElementById("passwordInput").value;
+      if (pw === PASSWORD) {
+        document.getElementById("passwordStep").style.display = "none";
+        document.getElementById("nameStep").style.display = "block";
+        document.getElementById("passwordError").textContent = "";
+      } else {
+        document.getElementById("passwordError").textContent = "パスワードが違います。";
+      }
+    };
+
+    window.startApp = function() {
+      myName = document.getElementById("nameInput").value.trim();
+      if (!myName) { alert("名前を入力してください"); return; }
+
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("memberPanel").style.display = "block";
+      document.getElementById("meetingPanel").style.display = "block";
+      initFirebase();
+      listenPeople();
+      listenMeeting();
+      startWatchingLocation();
+    };
+
+    window.logoutApp = async function() {
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (firebaseReady) {
+        try { await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`)); } catch(e) { console.warn(e); }
+      }
+      if (markers[myId]) { map.removeLayer(markers[myId]); delete markers[myId]; }
+      myName = "";
+      updateMemberList({});
+      document.getElementById("nameInput").value = "";
+      document.getElementById("memberPanel").style.display = "none";
+      document.getElementById("meetingPanel").style.display = "none";
+      document.getElementById("loginPanel").style.display = "block";
+      document.getElementById("passwordStep").style.display = "block";
+      document.getElementById("nameStep").style.display = "none";
+    };
+
+    window.editMeeting = function() {
+      if (currentMeeting) {
+        document.getElementById("meetingPlaceInput").value = currentMeeting.place || "";
+        document.getElementById("meetingTimeInput").value = currentMeeting.time || "";
+      }
+      resetMeetingSearchState();
+      setMeetingFormVisible(true);
+    };
+
+    function previewMeeting(lat, lng, place) {
+      const time = document.getElementById("meetingTimeInput").value;
+      pendingMeeting = { place, time, lat, lng, updatedAt: Date.now(), updatedBy: myName || "" };
+      const latlng = [lat, lng];
+      if (!meetingMarker) {
+        meetingMarker = L.marker(latlng, { icon: makeMeetingIcon() }).addTo(map);
+      } else {
+        meetingMarker.setLatLng(latlng);
+      }
+      meetingMarker.bindPopup(`<b>集合場所候補</b><br>${escapeHtml(place || "") }<br>${escapeHtml(formatMeetingTime(time))}`).openPopup();
+      map.setView(latlng, 17);
+      meetingSearchDone = true;
+      document.getElementById("meetingSearchButton").textContent = "集合場所登録";
+      document.getElementById("meetingHint").textContent = "地図上の「集」マーカーを確認し、よければ「集合場所登録」を押してください。";
+    }
+
+    window.selectMeetingAtMapCenter = function() {
+      const place = document.getElementById("meetingPlaceInput").value.trim() || "地図で指定した場所";
+      const center = map.getCenter();
+      previewMeeting(center.lat, center.lng, place);
+    };
+
+    window.searchOrCompleteMeeting = async function() {
+      if (meetingSearchDone && pendingMeeting) {
+        saveMeeting(pendingMeeting.lat, pendingMeeting.lng, pendingMeeting.place);
+        resetMeetingSearchState();
+        setMeetingFormVisible(false);
+        return;
+      }
+
+      const place = document.getElementById("meetingPlaceInput").value.trim();
+      if (!place) { alert("集合場所を入力してください"); return; }
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(place);
+      try {
+        const res = await fetch(url, { headers: { "Accept": "application/json" } });
+        const data = await res.json();
+        if (!data || data.length === 0) {
+          const center = map.getCenter();
+          previewMeeting(center.lat, center.lng, place);
+          alert("場所が見つかりませんでした。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
+          return;
+        }
+        const lat = Number(data[0].lat);
+        const lng = Number(data[0].lon);
+        previewMeeting(lat, lng, place);
+      } catch(e) {
+        const center = map.getCenter();
+        previewMeeting(center.lat, center.lng, place);
+        alert("場所検索に失敗しました。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
+      }
+    };
+
+    function saveMeeting(lat, lng, place) {
+      const time = document.getElementById("meetingTimeInput").value;
+      const meeting = { place, time, lat, lng, updatedAt: Date.now(), updatedBy: myName || "" };
+      updateMeeting(meeting);
+      if (firebaseReady) {
+        set(ref(db, `rooms/${ROOM_ID}/meeting`), { ...meeting, updatedAt: serverTimestamp() });
+      }
+    }
+  </script>
+</body>
+</html>
