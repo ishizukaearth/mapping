@@ -127,6 +127,8 @@
     let db = null;
     let firebaseReady = false;
     let watchId = null;
+    let unsubscribePeople = null;
+    let unsubscribeMeeting = null;
 
     let myId = localStorage.getItem("machiawase_my_id") || crypto.randomUUID();
     localStorage.setItem("machiawase_my_id", myId);
@@ -291,8 +293,9 @@
 
     function listenPeople() {
       if (!firebaseReady) return;
+      if (unsubscribePeople) unsubscribePeople();
       const peopleRef = ref(db, `rooms/${ROOM_ID}/people`);
-      onValue(peopleRef, snap => {
+      unsubscribePeople = onValue(peopleRef, snap => {
         const people = snap.val() || {};
         updateMemberList(people);
         Object.keys(markers).forEach(id => {
@@ -304,8 +307,9 @@
 
     function listenMeeting() {
       if (!firebaseReady) return;
+      if (unsubscribeMeeting) unsubscribeMeeting();
       const meetingRef = ref(db, `rooms/${ROOM_ID}/meeting`);
-      onValue(meetingRef, snap => updateMeeting(snap.val()));
+      unsubscribeMeeting = onValue(meetingRef, snap => updateMeeting(snap.val()));
     }
 
     function publishPosition(pos) {
@@ -371,17 +375,54 @@
     };
 
     window.logoutApp = async function() {
+      // 1. Stop GPS tracking on this device.
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
-      if (firebaseReady) {
-        try { await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`)); } catch(e) { console.warn(e); }
+
+      // 2. Stop Firebase listeners so the hidden screen does not keep updating after logout.
+      if (unsubscribePeople) {
+        unsubscribePeople();
+        unsubscribePeople = null;
       }
-      if (markers[myId]) { map.removeLayer(markers[myId]); delete markers[myId]; }
+      if (unsubscribeMeeting) {
+        unsubscribeMeeting();
+        unsubscribeMeeting = null;
+      }
+
+      // 3. Remove this user from Firebase so other members no longer see this marker.
+      if (firebaseReady) {
+        try {
+          await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`));
+        } catch(e) {
+          console.warn(e);
+        }
+      }
+
+      // 4. Clear markers and local screen state.
+      Object.keys(markers).forEach(id => {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+      });
+      if (meetingMarker) {
+        map.removeLayer(meetingMarker);
+        meetingMarker = null;
+      }
+      currentMeeting = null;
+      pendingMeeting = null;
+      meetingSearchDone = false;
       myName = "";
+
+      // 5. Return to the initial login screen.
       updateMemberList({});
       document.getElementById("nameInput").value = "";
+      document.getElementById("passwordInput").value = "";
+      document.getElementById("passwordError").textContent = "";
+      document.getElementById("meetingInfo").textContent = "未設定";
+      resetMeetingSearchState();
+      setMeetingFormVisible(true);
+
       document.getElementById("memberPanel").style.display = "none";
       document.getElementById("meetingPanel").style.display = "none";
       document.getElementById("titleLogoutButton").style.display = "none";
