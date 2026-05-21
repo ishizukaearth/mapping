@@ -17,10 +17,13 @@
     #map { height:100vh; width:100vw; }
     #appTitle {
       position:absolute; z-index:1001; left:12px; right:12px; top:8px;
-      background:white; padding:10px 12px; border-radius:12px;
+      background:white; padding:8px 10px; border-radius:12px;
       box-shadow:0 2px 12px rgba(0,0,0,.25);
-      font-size:22px; font-weight:bold; text-align:center;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      font-size:22px; font-weight:bold;
     }
+    #titleText { flex:1; text-align:center; }
+    #titleLogoutButton { display:none; width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
     .panel {
       position:absolute; z-index:1000; background:white;
       padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
@@ -33,7 +36,8 @@
     #meetingSummaryText { flex:1; min-width:0; }
     #meetingEditButton { width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
     #meetingForm { margin-top:8px; }
-    #memberList { margin:6px 0 0 0; padding-left:20px; }
+    #memberList { margin:6px 0 0 0; padding-left:0; list-style:none; }
+    .memberJump { cursor:pointer; color:#1769aa; font-weight:bold; padding-right:4px; font-size:20px; }
     input, button { font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box; }
     button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
     .secondary { background:#666; }
@@ -53,7 +57,8 @@
       box-shadow:0 1px 8px rgba(0,0,0,.35);
     }
     @media (max-width: 700px) {
-      #appTitle { font-size:20px; }
+      #appTitle { font-size:18px; }
+      #titleLogoutButton { font-size:13px; padding:6px 8px; }
       #meetingPanel { left:12px; right:12px; top:auto; bottom:12px; width:auto; max-height:45vh; overflow:auto; }
       #memberPanel { max-width:180px; }
     }
@@ -61,12 +66,11 @@
 </head>
 <body>
   <div id="map"></div>
-  <div id="appTitle">ももの会　集合アプリ</div>
+  <div id="appTitle"><span id="titleText">ももの会　集合アプリ</span><button id="titleLogoutButton" class="danger small" onclick="logoutApp()">ログアウト</button></div>
 
   <div id="memberPanel" class="panel">
     <b>ログイン中</b>
     <ul id="memberList"></ul>
-    <button class="danger small" onclick="logoutApp()">ログアウト</button>
   </div>
 
   <div id="meetingPanel" class="panel">
@@ -210,11 +214,46 @@
     function updateMemberList(people) {
       const ul = document.getElementById("memberList");
       ul.innerHTML = "";
-      Object.values(people || {}).sort((a,b)=>(a.name||"").localeCompare(b.name||"", 'ja')).forEach(p => {
-        const li = document.createElement("li");
-        li.textContent = p.name || "名前なし";
-        ul.appendChild(li);
-      });
+
+      const meetingLi = document.createElement("li");
+      const meetingDot = document.createElement("span");
+      meetingDot.textContent = "・";
+      meetingDot.className = "memberJump";
+      meetingDot.title = "集合場所へ移動";
+      meetingDot.onclick = function() { focusMeeting(); };
+      meetingLi.appendChild(meetingDot);
+      meetingLi.appendChild(document.createTextNode("集合場所"));
+      ul.appendChild(meetingLi);
+
+      Object.entries(people || {})
+        .sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||"", 'ja'))
+        .forEach(([id, p]) => {
+          const li = document.createElement("li");
+          const dot = document.createElement("span");
+          dot.textContent = "・";
+          dot.className = "memberJump";
+          dot.title = "この人の場所へ移動";
+          dot.onclick = function() { focusPerson(id); };
+          li.appendChild(dot);
+          li.appendChild(document.createTextNode(p.name || "名前なし"));
+          ul.appendChild(li);
+        });
+    }
+
+    function focusPerson(id) {
+      const marker = markers[id];
+      if (!marker) { alert("このメンバーの位置はまだ取得できていません。"); return; }
+      map.setView(marker.getLatLng(), 17);
+      marker.openPopup();
+    }
+
+    function focusMeeting() {
+      if (!currentMeeting || typeof currentMeeting.lat !== "number" || typeof currentMeeting.lng !== "number") {
+        alert("集合場所はまだ登録されていません。");
+        return;
+      }
+      map.setView([currentMeeting.lat, currentMeeting.lng], 17);
+      if (meetingMarker) meetingMarker.openPopup();
     }
 
     function setMeetingFormVisible(visible) {
@@ -272,7 +311,6 @@
     function publishPosition(pos) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      map.setView([lat, lng], 17);
 
       const myPerson = { name: myName, lat, lng, updatedAt: Date.now() };
       updateMarker(myId, myPerson);
@@ -325,6 +363,7 @@
       document.getElementById("loginPanel").style.display = "none";
       document.getElementById("memberPanel").style.display = "block";
       document.getElementById("meetingPanel").style.display = "block";
+      document.getElementById("titleLogoutButton").style.display = "inline-block";
       initFirebase();
       listenPeople();
       listenMeeting();
@@ -345,6 +384,7 @@
       document.getElementById("nameInput").value = "";
       document.getElementById("memberPanel").style.display = "none";
       document.getElementById("meetingPanel").style.display = "none";
+      document.getElementById("titleLogoutButton").style.display = "none";
       document.getElementById("loginPanel").style.display = "block";
       document.getElementById("passwordStep").style.display = "block";
       document.getElementById("nameStep").style.display = "none";
