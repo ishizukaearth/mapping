@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ももの会　集合アプリ</title>
+  <title>ももの会 推し店マップ</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#ffffff">
-  <meta name="apple-mobile-web-app-title" content="ももの会　集合アプリ">
-  <meta name="application-name" content="ももの会　集合アプリ">
+  <meta name="apple-mobile-web-app-title" content="ももの会 推し店マップ">
+  <meta name="application-name" content="ももの会 推し店マップ">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -19,79 +19,105 @@
       position:absolute; z-index:1001; left:58px; right:12px; top:8px;
       background:white; padding:8px 10px; border-radius:12px;
       box-shadow:0 2px 12px rgba(0,0,0,.25);
-      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
       font-size:22px; font-weight:bold;
     }
-    #titleText { flex:1; text-align:center; }
-    #titleLogoutButton { display:none; width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
     .panel {
       position:absolute; z-index:1000; background:white;
       padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
       font-size:16px;
     }
     .login { left:12px; right:12px; margin:auto; top:22%; max-width:330px; }
-    #memberPanel { display:none; left:12px; top:70px; min-width:170px; max-width:260px; }
-    #meetingPanel { display:none; right:12px; top:70px; width:300px; max-width:calc(100vw - 48px); }
-    #meetingSummaryRow { display:flex; align-items:flex-start; gap:8px; }
-    #meetingSummaryText { flex:1; min-width:0; }
-    #meetingEditButton { width:auto; margin-top:0; padding:6px 10px; font-size:14px; white-space:nowrap; }
-    #meetingForm { margin-top:8px; }
-    #memberList { margin:6px 0 0 0; padding-left:0; list-style:none; }
-    .memberJump { cursor:pointer; color:#1769aa; font-weight:bold; padding-right:4px; font-size:20px; }
-    input, button { font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box; }
+    #shopListPanel { display:none; left:12px; bottom:12px; width:340px; max-width:calc(100vw - 48px); max-height:42vh; overflow:auto; }
+    #shopPanel { display:none; right:12px; top:70px; width:350px; max-width:calc(100vw - 48px); max-height:70vh; overflow:auto; }
+    #shopListHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #newShopButton { width:auto; margin-top:0; padding:7px 10px; font-size:14px; white-space:nowrap; }
+    input, textarea, select, button {
+      font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box;
+      font-family:inherit;
+    }
+    textarea { resize:vertical; min-height:74px; }
     button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
+    button:disabled { background:#b8c1c8; color:#f5f5f5; cursor:not-allowed; }
     .secondary { background:#666; }
     .danger { background:#b00020; }
-    .small { font-size:14px; padding:7px; }
     .hint { font-size:14px; color:#555; line-height:1.4; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .row button { width:auto; flex:1; }
+    #shopList { margin:8px 0 0 0; padding-left:0; list-style:none; }
+    .shopItem { border-top:1px solid #e5e5e5; padding:9px 0; cursor:pointer; }
+    .shopItem:first-child { border-top:0; }
+    .shopNameButton { color:#1769aa; font-weight:bold; }
+    .shopMeta { font-size:13px; color:#555; margin-top:2px; line-height:1.35; }
+    .categoryBadge {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:38px; padding:2px 6px; margin-right:6px; border-radius:999px;
+      color:white; font-size:13px; font-weight:bold;
+    }
+    #photoPreview { display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px; border:1px solid #ddd; }
+    #newCategoryInput { display:none; }
     .marker-letter {
       width:34px; height:34px; border-radius:50%; background:#1769aa; color:white;
       display:flex; align-items:center; justify-content:center;
       font-size:20px; font-weight:bold; border:3px solid white;
       box-shadow:0 1px 8px rgba(0,0,0,.35);
     }
-    .meeting-marker {
-      width:42px; height:42px; border-radius:50%; background:#d00000; color:white;
+    .shop-marker {
+      width:42px; height:42px; border-radius:50%; color:white;
       display:flex; align-items:center; justify-content:center;
-      font-size:24px; font-weight:bold; border:3px solid white;
+      font-size:15px; font-weight:bold; border:3px solid white;
       box-shadow:0 1px 8px rgba(0,0,0,.35);
     }
+    .preview-marker { background:#e08000; }
+    .shopPopup { max-width:240px; line-height:1.45; }
+    .shopPopup img { width:100%; max-height:150px; object-fit:cover; border-radius:8px; margin:6px 0; }
+    .shopPopup a { color:#1769aa; word-break:break-all; }
     @media (max-width: 700px) {
       #appTitle { font-size:18px; }
-      #titleLogoutButton { font-size:13px; padding:6px 8px; }
-      #meetingPanel { left:12px; right:12px; top:auto; bottom:12px; width:auto; max-height:45vh; overflow:auto; }
-      #memberPanel { max-width:180px; }
+      #shopPanel { left:12px; right:12px; top:66px; width:auto; max-height:55vh; }
+      #shopListPanel { left:12px; right:12px; bottom:12px; width:auto; max-height:32vh; }
+      body.showForm #shopListPanel { display:none !important; }
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div id="appTitle"><span id="titleText">ももの会　集合アプリ</span><button id="titleLogoutButton" class="danger small" onclick="logoutApp()">ログアウト</button></div>
+  <div id="appTitle"><span id="titleText">ももの会 推し店マップ</span></div>
 
-  <div id="memberPanel" class="panel">
-    <b>ログイン中</b>
-    <ul id="memberList"></ul>
+  <div id="shopListPanel" class="panel">
+    <div id="shopListHeader">
+      <b>登録されたお店</b>
+      <button id="newShopButton" onclick="openNewShopForm()">新規登録</button>
+    </div>
+    <ul id="shopList"></ul>
   </div>
 
-  <div id="meetingPanel" class="panel">
-    <div id="meetingSummaryRow">
-      <div id="meetingSummaryText">
-        <b>集合場所・日時</b>
-        <div class="hint" id="meetingInfo">未設定</div>
-      </div>
-      <button id="meetingEditButton" class="secondary" onclick="editMeeting()" style="display:none;">訂正</button>
+  <div id="shopPanel" class="panel">
+    <b id="shopFormTitle">お店を登録</b>
+    <input id="shopNameInput" type="text" placeholder="店名 例：喫茶もも">
+    <input id="shopAddressInput" type="text" placeholder="場所・住所・目印 任意">
+    <div class="row">
+      <button class="secondary" onclick="selectShopAtMapCenter()">地図中心</button>
+      <button id="currentLocationButton" onclick="selectShopAtCurrentLocation()" disabled>現在位置</button>
     </div>
-    <div id="meetingForm">
-      <input id="meetingPlaceInput" type="text" placeholder="例：三鷹駅北口">
-      <input id="meetingTimeInput" type="datetime-local">
-      <button id="meetingSearchButton" onclick="searchOrCompleteMeeting()">集合場所検索</button>
-      <button class="secondary small" onclick="selectMeetingAtMapCenter()">地図の中心を集合場所にする</button>
-      <div class="hint" id="meetingHint">1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。</div>
+    <select id="shopCategoryInput">
+      <option value="">分類を選択</option>
+    </select>
+    <input id="newCategoryInput" type="text" placeholder="新しい分類名">
+    <textarea id="shopMemoInput" placeholder="おすすめ、営業時間、メモなど"></textarea>
+    <input id="shopUrlInput" type="url" placeholder="関連URL 任意">
+    <input id="shopPhotoInput" type="file" accept="image/*">
+    <img id="photoPreview" alt="写真プレビュー">
+    <div class="row">
+      <button id="shopSaveButton" onclick="saveCurrentShop()">登録</button>
+      <button class="danger" id="shopDeleteButton" onclick="deleteEditingShop()" style="display:none;">削除</button>
+      <button class="secondary" onclick="resetShopForm()">閉じる</button>
     </div>
+    <div class="hint" id="shopHint">地図を動かして「地図中心」、または位置情報を許可して「現在位置」で場所を指定します。</div>
   </div>
 
   <div id="loginPanel" class="panel login">
-    <h2 style="margin:0 0 8px 0;">ももの会　集合アプリ</h2>
+    <h2 style="margin:0 0 8px 0;">ももの会 推し店マップ</h2>
     <div id="passwordStep">
       <div>パスワードを入力してください</div>
       <input id="passwordInput" type="password" placeholder="パスワード">
@@ -102,13 +128,13 @@
       <div>お名前を入力してください</div>
       <input id="nameInput" type="text" placeholder="例：石塚">
       <button onclick="startApp()">地図に参加</button>
-      <div class="hint">位置情報の許可を求められたら「許可」を押してください。</div>
+      <div class="hint">位置情報を許可すると、地図上に自分の居場所が表示され、「現在位置」でお店を登録できます。</div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getDatabase, ref, set, onValue, onDisconnect, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCZ8dIyrDGfBdmBbJy3z62Fhzm1EjIxJiw",
@@ -122,60 +148,48 @@
 
     const PASSWORD = "m340";
     const ROOM_ID = "default-room";
+    const DEFAULT_CATEGORIES = ["喫茶・カフェ", "食事", "買い物", "見どころ"];
+    const CATEGORY_COLORS = ["#1769aa", "#12805c", "#c25216", "#7b3fb2", "#b00020", "#607d00", "#00796b", "#ad1457", "#5d4037", "#455a64"];
 
     let app = null;
     let db = null;
     let firebaseReady = false;
     let watchId = null;
     let unsubscribePeople = null;
-    let unsubscribeMeeting = null;
-
+    let unsubscribeShops = null;
     let myId = localStorage.getItem("machiawase_my_id") || crypto.randomUUID();
     localStorage.setItem("machiawase_my_id", myId);
     let myName = "";
-    let loginAt = 0;
-    const LOGIN_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours after login
-
     let map = L.map('map').setView([35.681236, 139.767125], 14);
     let markers = {};
-    let meetingMarker = null;
-    let currentMeeting = null;
-    let pendingMeeting = null;
-    let meetingSearchDone = false;
+    let shops = {};
+    let shopMarkers = {};
+    let shopLabels = {};
+    let previewMarker = null;
+    let pendingShopLocation = null;
+    let editingShopId = null;
+    let selectedPhotoData = "";
+    let currentPosition = null;
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19
     }).addTo(map);
 
-    function isFirebaseConfigured() {
-      return !!(
-        firebaseConfig &&
-        firebaseConfig.apiKey &&
-        firebaseConfig.databaseURL &&
-        !firebaseConfig.apiKey.includes("YOUR_") &&
-        !firebaseConfig.databaseURL.includes("YOUR_")
-      );
-    }
-
     function initFirebase() {
       if (firebaseReady) return true;
-      if (!isFirebaseConfigured()) {
-        console.warn("Firebase is not configured. Local marker only mode.");
-        return false;
-      }
       app = initializeApp(firebaseConfig);
       db = getDatabase(app);
       firebaseReady = true;
       return true;
     }
 
-    function firstChar(name) {
-      return (name || "?").trim().charAt(0) || "?";
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    function firstChar(name) {
+      return (name || "?").trim().charAt(0) || "?";
     }
 
     function makeLetterIcon(name) {
@@ -187,21 +201,75 @@
       });
     }
 
-    function makeMeetingIcon() {
+    function makeShopIcon(label, color, isPreview = false) {
       return L.divIcon({
         className: "",
-        html: `<div class="meeting-marker">集</div>`,
+        html: `<div class="shop-marker ${isPreview ? "preview-marker" : ""}" style="background:${escapeHtml(color)}">${escapeHtml(label)}</div>`,
         iconSize: [46, 46],
         iconAnchor: [23, 23]
       });
     }
 
-    function formatMeetingTime(value) {
-      if (!value) return "日時未設定";
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return value;
-      return d.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    function sortedCategories() {
+      const set = new Set(DEFAULT_CATEGORIES);
+      Object.values(shops || {}).forEach(shop => {
+        if (shop.category) set.add(shop.category);
+      });
+      if (Object.values(shops || {}).some(shop => !shop.category)) set.add("未分類");
+      return Array.from(set);
     }
+
+    function categoryInfo(category) {
+      const categories = sortedCategories();
+      const index = Math.max(0, categories.indexOf(category));
+      return {
+        letter: String.fromCharCode(65 + Math.min(index, 25)),
+        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        order: index
+      };
+    }
+
+    function computeShopLabels() {
+      const grouped = {};
+      Object.entries(shops || {}).forEach(([id, shop]) => {
+        const category = shop.category || "未分類";
+        if (!grouped[category]) grouped[category] = [];
+        grouped[category].push([id, shop]);
+      });
+      shopLabels = {};
+      Object.entries(grouped).forEach(([category, entries]) => {
+        const info = categoryInfo(category);
+        entries
+          .sort((a,b)=>(a[1].createdAtLocal || a[1].updatedAtLocal || a[1].updatedAt || 0) - (b[1].createdAtLocal || b[1].updatedAtLocal || b[1].updatedAt || 0) || (a[1].name || "").localeCompare(b[1].name || "", "ja"))
+          .forEach(([id], index) => {
+            shopLabels[id] = { label: `${info.letter}${index + 1}`, color: info.color, categoryOrder: info.order, number: index + 1 };
+          });
+      });
+    }
+
+    function populateCategorySelect(selected = "") {
+      const select = document.getElementById("shopCategoryInput");
+      select.innerHTML = '<option value="">分類を選択</option>';
+      sortedCategories().forEach(category => {
+        const option = document.createElement("option");
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+      });
+      const other = document.createElement("option");
+      other.value = "__new__";
+      other.textContent = "その他（新分類を追加）";
+      select.appendChild(other);
+      select.value = selected && sortedCategories().includes(selected) ? selected : "";
+      updateNewCategoryVisibility();
+    }
+
+    function updateNewCategoryVisibility() {
+      const isNew = document.getElementById("shopCategoryInput").value === "__new__";
+      document.getElementById("newCategoryInput").style.display = isNew ? "block" : "none";
+    }
+
+    document.getElementById("shopCategoryInput").addEventListener("change", updateNewCategoryVisibility);
 
     function updateMarker(id, person) {
       if (!person || typeof person.lat !== "number" || typeof person.lng !== "number") return;
@@ -215,156 +283,293 @@
       markers[id].bindPopup(escapeHtml(person.name || "名前なし"));
     }
 
-    function updateMemberList(people) {
-      const ul = document.getElementById("memberList");
-      ul.innerHTML = "";
-
-      const meetingLi = document.createElement("li");
-      const meetingDot = document.createElement("span");
-      meetingDot.textContent = "・";
-      meetingDot.className = "memberJump";
-      meetingDot.title = "集合場所へ移動";
-      meetingDot.onclick = function() { focusMeeting(); };
-      meetingLi.appendChild(meetingDot);
-      meetingLi.appendChild(document.createTextNode("集合場所"));
-      ul.appendChild(meetingLi);
-
-      Object.entries(people || {})
-        .sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||"", 'ja'))
-        .forEach(([id, p]) => {
-          const li = document.createElement("li");
-          const dot = document.createElement("span");
-          dot.textContent = "・";
-          dot.className = "memberJump";
-          dot.title = "この人の場所へ移動";
-          dot.onclick = function() { focusPerson(id); };
-          li.appendChild(dot);
-          li.appendChild(document.createTextNode(p.name || "名前なし"));
-          ul.appendChild(li);
-        });
+    function shopPopupHtml(id, shop) {
+      const label = shopLabels[id] ? shopLabels[id].label : "";
+      const photo = shop.photoData ? `<img src="${shop.photoData}" alt="${escapeHtml(shop.name)}">` : "";
+      const category = shop.category ? `<div>${escapeHtml(label)} ${escapeHtml(shop.category)}</div>` : "";
+      const memo = shop.memo ? `<div>${escapeHtml(shop.memo).replace(/\n/g, "<br>")}</div>` : "";
+      const url = shop.url ? `<div><a href="${escapeHtml(shop.url)}" target="_blank" rel="noopener">関連URLを開く</a></div>` : "";
+      return `<div class="shopPopup"><b>${escapeHtml(shop.name || "お店")}</b>${photo}${category}${memo}${url}<button onclick="editShop('${id}')">修正・削除</button></div>`;
     }
 
-    function focusPerson(id) {
-      const marker = markers[id];
-      if (!marker) { alert("このメンバーの位置はまだ取得できていません。"); return; }
-      map.setView(marker.getLatLng(), 17);
-      marker.openPopup();
-    }
-
-    function focusMeeting() {
-      if (!currentMeeting || typeof currentMeeting.lat !== "number" || typeof currentMeeting.lng !== "number") {
-        alert("集合場所はまだ登録されていません。");
-        return;
-      }
-      map.setView([currentMeeting.lat, currentMeeting.lng], 17);
-      if (meetingMarker) meetingMarker.openPopup();
-    }
-
-    function setMeetingFormVisible(visible) {
-      document.getElementById("meetingForm").style.display = visible ? "block" : "none";
-      document.getElementById("meetingEditButton").style.display = visible ? "none" : "inline-block";
-    }
-
-    function resetMeetingSearchState() {
-      pendingMeeting = null;
-      meetingSearchDone = false;
-      document.getElementById("meetingSearchButton").textContent = "集合場所検索";
-      document.getElementById("meetingHint").textContent = "1回目の「集合場所検索」で地図検索、2回目の「集合場所登録」で確定します。見つからない時は、現在の地図中心を集合場所候補にします。";
-    }
-
-    function updateMeeting(meeting) {
-      currentMeeting = meeting || null;
-      const info = document.getElementById("meetingInfo");
-      if (!meeting || typeof meeting.lat !== "number" || typeof meeting.lng !== "number") {
-        info.textContent = "未設定";
-        setMeetingFormVisible(true);
-        if (meetingMarker) { map.removeLayer(meetingMarker); meetingMarker = null; }
-        return;
-      }
-      const text = `${meeting.place || "集合場所"} / ${formatMeetingTime(meeting.time)}`;
-      info.textContent = text;
-      const latlng = [meeting.lat, meeting.lng];
-      if (!meetingMarker) {
-        meetingMarker = L.marker(latlng, { icon: makeMeetingIcon() }).addTo(map);
+    function updateShopMarker(id, shop) {
+      if (!shop || typeof shop.lat !== "number" || typeof shop.lng !== "number") return;
+      const latlng = [shop.lat, shop.lng];
+      const label = shopLabels[id] || { label: "?", color: "#12805c" };
+      if (!shopMarkers[id]) {
+        shopMarkers[id] = L.marker(latlng, { icon: makeShopIcon(label.label, label.color) }).addTo(map);
+        shopMarkers[id].on("click", () => editShop(id));
       } else {
-        meetingMarker.setLatLng(latlng);
+        shopMarkers[id].setLatLng(latlng);
+        shopMarkers[id].setIcon(makeShopIcon(label.label, label.color));
       }
-      meetingMarker.bindPopup(`<b>集合場所</b><br>${escapeHtml(meeting.place || "") }<br>${escapeHtml(formatMeetingTime(meeting.time))}`);
-      setMeetingFormVisible(false);
+      shopMarkers[id].bindPopup(shopPopupHtml(id, shop));
+    }
+
+    function renderShopList() {
+      computeShopLabels();
+      populateCategorySelect(document.getElementById("shopCategoryInput").value);
+      const ul = document.getElementById("shopList");
+      ul.innerHTML = "";
+      const entries = Object.entries(shops || {}).sort((a,b) => {
+        const la = shopLabels[a[0]] || {};
+        const lb = shopLabels[b[0]] || {};
+        return (la.categoryOrder || 0) - (lb.categoryOrder || 0) || (la.number || 0) - (lb.number || 0);
+      });
+      if (entries.length === 0) {
+        const li = document.createElement("li");
+        li.className = "hint";
+        li.textContent = "まだお店は登録されていません。";
+        ul.appendChild(li);
+        return;
+      }
+      entries.forEach(([id, shop]) => {
+        const label = shopLabels[id] || { label: "", color: "#1769aa" };
+        const li = document.createElement("li");
+        li.className = "shopItem";
+        li.onclick = function() { editShop(id); };
+        const name = document.createElement("div");
+        name.className = "shopNameButton";
+        name.innerHTML = `<span class="categoryBadge" style="background:${label.color}">${escapeHtml(label.label)}</span>${escapeHtml(shop.name || "お店")}`;
+        const meta = document.createElement("div");
+        meta.className = "shopMeta";
+        meta.textContent = [shop.category, shop.address].filter(Boolean).join(" / ");
+        li.appendChild(name);
+        if (meta.textContent) li.appendChild(meta);
+        ul.appendChild(li);
+      });
     }
 
     function listenPeople() {
       if (!firebaseReady) return;
       if (unsubscribePeople) unsubscribePeople();
-      const peopleRef = ref(db, `rooms/${ROOM_ID}/people`);
-      unsubscribePeople = onValue(peopleRef, snap => {
+      unsubscribePeople = onValue(ref(db, `rooms/${ROOM_ID}/people`), snap => {
         const people = snap.val() || {};
-        const now = Date.now();
-        const activePeople = {};
-
-        Object.entries(people).forEach(([id, person]) => {
-          const loginTime = typeof person.loginAt === "number" ? person.loginAt : 0;
-          if (loginTime && now - loginTime <= LOGIN_LIMIT_MS) {
-            activePeople[id] = person;
+        Object.keys(markers).forEach(id => {
+          if (!people[id] || typeof people[id].lat !== "number" || typeof people[id].lng !== "number") {
+            map.removeLayer(markers[id]);
+            delete markers[id];
           }
         });
-
-        updateMemberList(activePeople);
-
-        Object.keys(markers).forEach(id => {
-          if (!activePeople[id]) { map.removeLayer(markers[id]); delete markers[id]; }
-        });
-
-        Object.entries(activePeople).forEach(([id, person]) => updateMarker(id, person));
+        Object.entries(people).forEach(([id, person]) => updateMarker(id, person));
       });
     }
 
-    function listenMeeting() {
+    function listenShops() {
       if (!firebaseReady) return;
-      if (unsubscribeMeeting) unsubscribeMeeting();
-      const meetingRef = ref(db, `rooms/${ROOM_ID}/meeting`);
-      unsubscribeMeeting = onValue(meetingRef, snap => updateMeeting(snap.val()));
+      if (unsubscribeShops) unsubscribeShops();
+      unsubscribeShops = onValue(ref(db, `rooms/${ROOM_ID}/shops`), snap => {
+        shops = snap.val() || {};
+        computeShopLabels();
+        Object.keys(shopMarkers).forEach(id => {
+          if (!shops[id]) {
+            map.removeLayer(shopMarkers[id]);
+            delete shopMarkers[id];
+          }
+        });
+        Object.entries(shops).forEach(([id, shop]) => updateShopMarker(id, shop));
+        renderShopList();
+      });
+    }
+
+    function updateCurrentLocationButton() {
+      document.getElementById("currentLocationButton").disabled = !currentPosition;
     }
 
     function publishPosition(pos) {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      if (!loginAt) loginAt = Date.now();
-      const myPerson = { name: myName, lat, lng, loginAt: loginAt, updatedAt: Date.now() };
+      currentPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      updateCurrentLocationButton();
+      const myPerson = { name: myName, lat: currentPosition.lat, lng: currentPosition.lng, updatedAt: Date.now() };
       updateMarker(myId, myPerson);
-      updateMemberList({ [myId]: myPerson });
-
       if (firebaseReady) {
         const myRef = ref(db, `rooms/${ROOM_ID}/people/${myId}`);
-        // Do not use onDisconnect().remove().
-        // iPhone/Safari may temporarily disconnect during sleep or network changes.
-        // The member remains visible for 2 hours from loginAt, and is removed only by explicit logout.
-        set(myRef, { name: myName, lat, lng, loginAt: loginAt, updatedAt: serverTimestamp() });
+        set(myRef, { name: myName, lat: currentPosition.lat, lng: currentPosition.lng, updatedAt: serverTimestamp() });
+        onDisconnect(myRef).remove();
       }
-    }
-
-    function handleGeoError(error) {
-      let msg = "位置情報を取得できませんでした。";
-      if (error.code === 1) {
-        msg = "位置情報が許可されていません。iPhoneの設定でSafariの位置情報を許可してください。";
-      } else if (error.code === 2) {
-        msg = "現在位置を判定できませんでした。屋外または窓際で再試行してください。";
-      } else if (error.code === 3) {
-        msg = "位置情報の取得が時間切れになりました。もう一度ログインしてください。";
-      }
-      alert(msg);
     }
 
     function startWatchingLocation() {
-      if (!navigator.geolocation) {
-        alert("この端末では位置情報が使えません。");
-        return;
-      }
+      updateCurrentLocationButton();
+      if (!navigator.geolocation) return;
       const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
-      navigator.geolocation.getCurrentPosition(publishPosition, handleGeoError, options);
-      watchId = navigator.geolocation.watchPosition(publishPosition, handleGeoError, options);
+      navigator.geolocation.getCurrentPosition(publishPosition, () => updateCurrentLocationButton(), options);
+      watchId = navigator.geolocation.watchPosition(publishPosition, () => updateCurrentLocationButton(), options);
     }
+
+    async function readPhotoFile(file) {
+      if (!file) return "";
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+      const maxSide = 900;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.76);
+    }
+
+    document.getElementById("shopPhotoInput").addEventListener("change", async function(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      selectedPhotoData = await readPhotoFile(file);
+      const preview = document.getElementById("photoPreview");
+      preview.src = selectedPhotoData;
+      preview.style.display = "block";
+    });
+
+    function previewShopLocation(lat, lng, address) {
+      pendingShopLocation = { lat, lng, address };
+      const latlng = [lat, lng];
+      if (!previewMarker) {
+        previewMarker = L.marker(latlng, { icon: makeShopIcon("候補", "#e08000", true) }).addTo(map);
+      } else {
+        previewMarker.setLatLng(latlng);
+      }
+      previewMarker.bindPopup(`<b>登録候補</b><br>${escapeHtml(address || "指定した場所")}`).openPopup();
+      map.setView(latlng, 17);
+      document.getElementById("shopHint").textContent = "候補位置を確認しました。よければ内容を入力して「登録」を押してください。";
+    }
+
+    window.selectShopAtMapCenter = function() {
+      const address = document.getElementById("shopAddressInput").value.trim() || "地図中心";
+      const center = map.getCenter();
+      previewShopLocation(center.lat, center.lng, address);
+    };
+
+    window.selectShopAtCurrentLocation = function() {
+      if (!currentPosition) return;
+      const address = document.getElementById("shopAddressInput").value.trim() || "現在位置";
+      previewShopLocation(currentPosition.lat, currentPosition.lng, address);
+    };
+
+    window.openNewShopForm = function() {
+      resetShopForm(false);
+      document.getElementById("shopPanel").style.display = "block";
+      document.body.classList.add("showForm");
+    };
+
+    window.saveCurrentShop = async function() {
+      const name = document.getElementById("shopNameInput").value.trim();
+      if (!name) { alert("店名を入力してください"); return; }
+      if (!pendingShopLocation) { alert("地図中心または現在位置で場所を指定してください。"); return; }
+      let category = document.getElementById("shopCategoryInput").value;
+      if (category === "__new__") category = document.getElementById("newCategoryInput").value.trim();
+      if (!category) { alert("分類を選んでください。"); return; }
+      const existing = editingShopId ? shops[editingShopId] : null;
+      const now = Date.now();
+      const shop = {
+        name,
+        address: document.getElementById("shopAddressInput").value.trim() || pendingShopLocation.address || "",
+        category,
+        memo: document.getElementById("shopMemoInput").value.trim(),
+        url: document.getElementById("shopUrlInput").value.trim(),
+        photoData: selectedPhotoData,
+        lat: pendingShopLocation.lat,
+        lng: pendingShopLocation.lng,
+        createdBy: existing?.createdBy || myName || "",
+        createdAtLocal: existing?.createdAtLocal || now,
+        updatedAtLocal: now,
+        updatedAt: now
+      };
+      if (firebaseReady) {
+        if (editingShopId) {
+          await set(ref(db, `rooms/${ROOM_ID}/shops/${editingShopId}`), { ...shop, updatedAt: serverTimestamp() });
+        } else {
+          await set(push(ref(db, `rooms/${ROOM_ID}/shops`)), { ...shop, updatedAt: serverTimestamp() });
+        }
+      } else {
+        const id = editingShopId || crypto.randomUUID();
+        shops[id] = shop;
+        computeShopLabels();
+        updateShopMarker(id, shop);
+        renderShopList();
+      }
+      resetShopForm();
+    };
+
+    window.editShop = function(id) {
+      const shop = shops[id];
+      if (!shop) return;
+      editingShopId = id;
+      pendingShopLocation = { lat: shop.lat, lng: shop.lng, address: shop.address || "" };
+      selectedPhotoData = shop.photoData || "";
+      document.getElementById("shopPanel").style.display = "block";
+      document.getElementById("shopFormTitle").textContent = "お店を修正・削除";
+      document.getElementById("shopNameInput").value = shop.name || "";
+      document.getElementById("shopAddressInput").value = shop.address || "";
+      populateCategorySelect(shop.category || "");
+      document.getElementById("shopMemoInput").value = shop.memo || "";
+      document.getElementById("shopUrlInput").value = shop.url || "";
+      document.getElementById("shopSaveButton").textContent = "更新";
+      document.getElementById("shopDeleteButton").style.display = "block";
+      const preview = document.getElementById("photoPreview");
+      if (selectedPhotoData) {
+        preview.src = selectedPhotoData;
+        preview.style.display = "block";
+      } else {
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+      }
+      previewShopLocation(shop.lat, shop.lng, shop.address || shop.name || "");
+      document.body.classList.add("showForm");
+    };
+
+    window.deleteEditingShop = async function() {
+      if (!editingShopId) return;
+      const id = editingShopId;
+      const shop = shops[id];
+      if (!shop || !confirm(`「${shop.name || "お店"}」を削除しますか？`)) return;
+      if (firebaseReady) {
+        await remove(ref(db, `rooms/${ROOM_ID}/shops/${id}`));
+      } else {
+        delete shops[id];
+        if (shopMarkers[id]) {
+          map.removeLayer(shopMarkers[id]);
+          delete shopMarkers[id];
+        }
+        renderShopList();
+      }
+      resetShopForm();
+    };
+
+    window.resetShopForm = function(hide = true) {
+      editingShopId = null;
+      pendingShopLocation = null;
+      selectedPhotoData = "";
+      document.getElementById("shopFormTitle").textContent = "お店を登録";
+      document.getElementById("shopNameInput").value = "";
+      document.getElementById("shopAddressInput").value = "";
+      populateCategorySelect("");
+      document.getElementById("newCategoryInput").value = "";
+      document.getElementById("shopMemoInput").value = "";
+      document.getElementById("shopUrlInput").value = "";
+      document.getElementById("shopPhotoInput").value = "";
+      document.getElementById("shopSaveButton").textContent = "登録";
+      document.getElementById("shopDeleteButton").style.display = "none";
+      document.getElementById("shopHint").textContent = "地図を動かして「地図中心」、または位置情報を許可して「現在位置」で場所を指定します。";
+      const preview = document.getElementById("photoPreview");
+      preview.removeAttribute("src");
+      preview.style.display = "none";
+      if (previewMarker) {
+        map.removeLayer(previewMarker);
+        previewMarker = null;
+      }
+      if (hide) {
+        document.getElementById("shopPanel").style.display = "none";
+        document.body.classList.remove("showForm");
+      }
+    };
 
     window.checkPassword = function() {
       const pw = document.getElementById("passwordInput").value;
@@ -380,145 +585,27 @@
     window.startApp = function() {
       myName = document.getElementById("nameInput").value.trim();
       if (!myName) { alert("名前を入力してください"); return; }
-      loginAt = Date.now();
-
       document.getElementById("loginPanel").style.display = "none";
-      document.getElementById("memberPanel").style.display = "block";
-      document.getElementById("meetingPanel").style.display = "block";
-      document.getElementById("titleLogoutButton").style.display = "inline-block";
+      document.getElementById("shopListPanel").style.display = "block";
       initFirebase();
       listenPeople();
-      listenMeeting();
+      listenShops();
+      renderShopList();
       startWatchingLocation();
     };
 
-    window.logoutApp = async function() {
-      // 1. Stop GPS tracking on this device.
+    async function backgroundLogout() {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
-
-      // 2. Stop Firebase listeners so the hidden screen does not keep updating after logout.
-      if (unsubscribePeople) {
-        unsubscribePeople();
-        unsubscribePeople = null;
-      }
-      if (unsubscribeMeeting) {
-        unsubscribeMeeting();
-        unsubscribeMeeting = null;
-      }
-
-      // 3. Remove this user from Firebase so other members no longer see this marker.
-      if (firebaseReady) {
-        try {
-          await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`));
-        } catch(e) {
-          console.warn(e);
-        }
-      }
-
-      // 4. Clear markers and local screen state.
-      Object.keys(markers).forEach(id => {
-        map.removeLayer(markers[id]);
-        delete markers[id];
-      });
-      if (meetingMarker) {
-        map.removeLayer(meetingMarker);
-        meetingMarker = null;
-      }
-      currentMeeting = null;
-      pendingMeeting = null;
-      meetingSearchDone = false;
-      myName = "";
-      loginAt = 0;
-
-      // 5. Return to the initial login screen.
-      updateMemberList({});
-      document.getElementById("nameInput").value = "";
-      document.getElementById("passwordInput").value = "";
-      document.getElementById("passwordError").textContent = "";
-      document.getElementById("meetingInfo").textContent = "未設定";
-      resetMeetingSearchState();
-      setMeetingFormVisible(true);
-
-      document.getElementById("memberPanel").style.display = "none";
-      document.getElementById("meetingPanel").style.display = "none";
-      document.getElementById("titleLogoutButton").style.display = "none";
-      document.getElementById("loginPanel").style.display = "block";
-      document.getElementById("passwordStep").style.display = "block";
-      document.getElementById("nameStep").style.display = "none";
-    };
-
-    window.editMeeting = function() {
-      if (currentMeeting) {
-        document.getElementById("meetingPlaceInput").value = currentMeeting.place || "";
-        document.getElementById("meetingTimeInput").value = currentMeeting.time || "";
-      }
-      resetMeetingSearchState();
-      setMeetingFormVisible(true);
-    };
-
-    function previewMeeting(lat, lng, place) {
-      const time = document.getElementById("meetingTimeInput").value;
-      pendingMeeting = { place, time, lat, lng, updatedAt: Date.now(), updatedBy: myName || "" };
-      const latlng = [lat, lng];
-      if (!meetingMarker) {
-        meetingMarker = L.marker(latlng, { icon: makeMeetingIcon() }).addTo(map);
-      } else {
-        meetingMarker.setLatLng(latlng);
-      }
-      meetingMarker.bindPopup(`<b>集合場所候補</b><br>${escapeHtml(place || "") }<br>${escapeHtml(formatMeetingTime(time))}`).openPopup();
-      map.setView(latlng, 17);
-      meetingSearchDone = true;
-      document.getElementById("meetingSearchButton").textContent = "集合場所登録";
-      document.getElementById("meetingHint").textContent = "地図上の「集」マーカーを確認し、よければ「集合場所登録」を押してください。";
-    }
-
-    window.selectMeetingAtMapCenter = function() {
-      const place = document.getElementById("meetingPlaceInput").value.trim() || "地図で指定した場所";
-      const center = map.getCenter();
-      previewMeeting(center.lat, center.lng, place);
-    };
-
-    window.searchOrCompleteMeeting = async function() {
-      if (meetingSearchDone && pendingMeeting) {
-        saveMeeting(pendingMeeting.lat, pendingMeeting.lng, pendingMeeting.place);
-        resetMeetingSearchState();
-        setMeetingFormVisible(false);
-        return;
-      }
-
-      const place = document.getElementById("meetingPlaceInput").value.trim();
-      if (!place) { alert("集合場所を入力してください"); return; }
-      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(place);
-      try {
-        const res = await fetch(url, { headers: { "Accept": "application/json" } });
-        const data = await res.json();
-        if (!data || data.length === 0) {
-          const center = map.getCenter();
-          previewMeeting(center.lat, center.lng, place);
-          alert("場所が見つかりませんでした。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
-          return;
-        }
-        const lat = Number(data[0].lat);
-        const lng = Number(data[0].lon);
-        previewMeeting(lat, lng, place);
-      } catch(e) {
-        const center = map.getCenter();
-        previewMeeting(center.lat, center.lng, place);
-        alert("場所検索に失敗しました。現在の地図中心を集合場所候補にしました。必要なら地図を動かしてから「地図の中心を集合場所にする」を押してください。");
-      }
-    };
-
-    function saveMeeting(lat, lng, place) {
-      const time = document.getElementById("meetingTimeInput").value;
-      const meeting = { place, time, lat, lng, updatedAt: Date.now(), updatedBy: myName || "" };
-      updateMeeting(meeting);
-      if (firebaseReady) {
-        set(ref(db, `rooms/${ROOM_ID}/meeting`), { ...meeting, updatedAt: serverTimestamp() });
+      if (firebaseReady && myName) {
+        try { await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`)); } catch(e) { console.warn(e); }
       }
     }
+
+    window.addEventListener("pagehide", backgroundLogout);
+    window.addEventListener("beforeunload", backgroundLogout);
   </script>
 </body>
 </html>
