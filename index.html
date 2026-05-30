@@ -22,40 +22,60 @@
       display:flex; align-items:center; justify-content:center; gap:8px;
       font-size:22px; font-weight:bold;
     }
+    #mapCrosshair {
+      position:absolute; z-index:1002; left:50%; top:50%;
+      width:58px; height:58px; margin-left:-29px; margin-top:-29px;
+      border-radius:50%; cursor:pointer; pointer-events:auto;
+    }
+    #mapCrosshair::before, #mapCrosshair::after {
+      content:""; position:absolute; background:#111; box-shadow:0 0 0 2px rgba(255,255,255,.8);
+    }
+    #mapCrosshair::before { left:27px; top:5px; width:4px; height:48px; }
+    #mapCrosshair::after { left:5px; top:27px; width:48px; height:4px; }
+    #mapCrosshair span {
+      position:absolute; left:19px; top:19px; width:20px; height:20px;
+      border:3px solid #111; border-radius:50%; background:rgba(255,255,255,.75);
+      box-sizing:border-box;
+    }
     .panel {
       position:absolute; z-index:1000; background:white;
       padding:12px; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.25);
       font-size:16px;
     }
     .login { left:12px; right:12px; margin:auto; top:22%; max-width:330px; }
-    #shopListPanel { display:none; left:12px; bottom:12px; width:340px; max-width:calc(100vw - 48px); max-height:42vh; overflow:auto; }
-    #shopPanel { display:none; right:12px; top:70px; width:350px; max-width:calc(100vw - 48px); max-height:70vh; overflow:auto; }
-    #shopListHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #shopListPanel { display:none; left:12px; right:12px; bottom:12px; height:46vh; overflow:auto; }
+    #shopPanel { display:none; right:12px; top:70px; width:350px; max-width:calc(100vw - 48px); max-height:62vh; overflow:auto; }
+    #shopListHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; position:sticky; top:0; background:white; padding-bottom:6px; }
     #newShopButton { width:auto; margin-top:0; padding:7px 10px; font-size:14px; white-space:nowrap; }
     input, textarea, select, button {
       font-size:18px; padding:9px; margin-top:8px; width:100%; box-sizing:border-box;
       font-family:inherit;
     }
-    textarea { resize:vertical; min-height:74px; }
+    textarea { resize:vertical; min-height:86px; }
     button { border:0; border-radius:10px; background:#1769aa; color:white; font-weight:bold; }
-    button:disabled { background:#b8c1c8; color:#f5f5f5; cursor:not-allowed; }
     .secondary { background:#666; }
     .danger { background:#b00020; }
     .hint { font-size:14px; color:#555; line-height:1.4; }
+    #shopCurrentLabel { margin-top:8px; font-size:14px; font-weight:bold; color:#333; }
     .row { display:flex; gap:8px; align-items:center; }
     .row button { width:auto; flex:1; }
     #shopList { margin:8px 0 0 0; padding-left:0; list-style:none; }
-    .shopItem { border-top:1px solid #e5e5e5; padding:9px 0; cursor:pointer; }
+    .shopItem { border-top:1px solid #e5e5e5; padding:10px 0; cursor:pointer; }
     .shopItem:first-child { border-top:0; }
-    .shopNameButton { color:#1769aa; font-weight:bold; }
-    .shopMeta { font-size:13px; color:#555; margin-top:2px; line-height:1.35; }
+    .shopLine1 { display:flex; align-items:center; gap:6px; color:#1769aa; font-weight:bold; }
+    .shopLine2 { margin-top:3px; color:#555; line-height:1.35; font-size:14px; }
     .categoryBadge {
       display:inline-flex; align-items:center; justify-content:center;
-      min-width:38px; padding:2px 6px; margin-right:6px; border-radius:999px;
-      color:white; font-size:13px; font-weight:bold;
+      min-width:38px; padding:2px 6px; border-radius:999px;
+      color:white; font-size:13px; font-weight:bold; flex:0 0 auto;
     }
-    #photoPreview { display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px; border:1px solid #ddd; }
     #newCategoryInput { display:none; }
+    .fileButton {
+      display:block; margin-top:8px; padding:9px; border-radius:10px;
+      background:#1769aa; color:white; text-align:center; font-size:18px; font-weight:bold;
+    }
+    #shopPhotoInput { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+    #photoPreview { display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px; border:1px solid #ddd; }
     .marker-letter {
       width:34px; height:34px; border-radius:50%; background:#1769aa; color:white;
       display:flex; align-items:center; justify-content:center;
@@ -68,20 +88,20 @@
       font-size:15px; font-weight:bold; border:3px solid white;
       box-shadow:0 1px 8px rgba(0,0,0,.35);
     }
-    .preview-marker { background:#e08000; }
     .shopPopup { max-width:240px; line-height:1.45; }
     .shopPopup img { width:100%; max-height:150px; object-fit:cover; border-radius:8px; margin:6px 0; }
     .shopPopup a { color:#1769aa; word-break:break-all; }
     @media (max-width: 700px) {
       #appTitle { font-size:18px; }
-      #shopPanel { left:12px; right:12px; top:66px; width:auto; max-height:55vh; }
-      #shopListPanel { left:12px; right:12px; bottom:12px; width:auto; max-height:32vh; }
+      #shopPanel { left:12px; right:12px; top:66px; width:auto; max-height:45vh; }
+      #shopListPanel { height:48vh; }
       body.showForm #shopListPanel { display:none !important; }
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="mapCrosshair" title="十字カーソル位置に店を移動" onclick="moveSelectedShopToCenter()"><span></span></div>
   <div id="appTitle"><span id="titleText">ももの会 推し店マップ</span></div>
 
   <div id="shopListPanel" class="panel">
@@ -94,26 +114,23 @@
 
   <div id="shopPanel" class="panel">
     <b id="shopFormTitle">お店を登録</b>
-    <input id="shopNameInput" type="text" placeholder="店名 例：喫茶もも">
-    <input id="shopAddressInput" type="text" placeholder="場所・住所・目印 任意">
-    <div class="row">
-      <button class="secondary" onclick="selectShopAtMapCenter()">地図中心</button>
-      <button id="currentLocationButton" onclick="selectShopAtCurrentLocation()" disabled>現在位置</button>
-    </div>
+    <input id="shopNameInput" type="text" placeholder="店名">
+    <div id="shopCurrentLabel">分類・番号: 登録後に自動採番</div>
     <select id="shopCategoryInput">
       <option value="">分類を選択</option>
     </select>
     <input id="newCategoryInput" type="text" placeholder="新しい分類名">
-    <textarea id="shopMemoInput" placeholder="おすすめ、営業時間、メモなど"></textarea>
+    <textarea id="shopMemoInput" placeholder="この店の魅力を紹介してください"></textarea>
     <input id="shopUrlInput" type="url" placeholder="関連URL 任意">
+    <label class="fileButton" for="shopPhotoInput">写真を選択</label>
     <input id="shopPhotoInput" type="file" accept="image/*">
     <img id="photoPreview" alt="写真プレビュー">
     <div class="row">
       <button id="shopSaveButton" onclick="saveCurrentShop()">登録</button>
-      <button class="danger" id="shopDeleteButton" onclick="deleteEditingShop()" style="display:none;">削除</button>
+      <button class="danger" id="shopDeleteButton" onclick="deleteEditingShop()" style="display:none;">抹消</button>
       <button class="secondary" onclick="resetShopForm()">閉じる</button>
     </div>
-    <div class="hint" id="shopHint">地図を動かして「地図中心」、または位置情報を許可して「現在位置」で場所を指定します。</div>
+    <div class="hint" id="shopHint">場所は地図中心の十字カーソルで指定します。位置を直す時は地図を動かして十字カーソルをタップしてください。</div>
   </div>
 
   <div id="loginPanel" class="panel login">
@@ -128,13 +145,13 @@
       <div>お名前を入力してください</div>
       <input id="nameInput" type="text" placeholder="例：石塚">
       <button onclick="startApp()">地図に参加</button>
-      <div class="hint">位置情報を許可すると、地図上に自分の居場所が表示され、「現在位置」でお店を登録できます。</div>
+      <div class="hint">位置情報を許可すると、自分の現在地だけがこの端末の地図に表示されます。</div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getDatabase, ref, set, onValue, onDisconnect, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCZ8dIyrDGfBdmBbJy3z62Fhzm1EjIxJiw",
@@ -155,21 +172,18 @@
     let db = null;
     let firebaseReady = false;
     let watchId = null;
-    let unsubscribePeople = null;
     let unsubscribeShops = null;
-    let myId = localStorage.getItem("machiawase_my_id") || crypto.randomUUID();
-    localStorage.setItem("machiawase_my_id", myId);
     let myName = "";
     let map = L.map('map').setView([35.681236, 139.767125], 14);
-    let markers = {};
+    let ownMarker = null;
     let shops = {};
     let shopMarkers = {};
     let shopLabels = {};
-    let previewMarker = null;
-    let pendingShopLocation = null;
+    let draftMarker = null;
+    let draftLocation = null;
     let editingShopId = null;
+    let selectedShopId = null;
     let selectedPhotoData = "";
-    let currentPosition = null;
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
@@ -192,7 +206,7 @@
       return (name || "?").trim().charAt(0) || "?";
     }
 
-    function makeLetterIcon(name) {
+    function makeOwnIcon(name) {
       return L.divIcon({
         className: "",
         html: `<div class="marker-letter">${escapeHtml(firstChar(name))}</div>`,
@@ -201,10 +215,10 @@
       });
     }
 
-    function makeShopIcon(label, color, isPreview = false) {
+    function makeShopIcon(label, color) {
       return L.divIcon({
         className: "",
-        html: `<div class="shop-marker ${isPreview ? "preview-marker" : ""}" style="background:${escapeHtml(color)}">${escapeHtml(label)}</div>`,
+        html: `<div class="shop-marker" style="background:${escapeHtml(color)}">${escapeHtml(label)}</div>`,
         iconSize: [46, 46],
         iconAnchor: [23, 23]
       });
@@ -251,9 +265,10 @@
       const select = document.getElementById("shopCategoryInput");
       select.innerHTML = '<option value="">分類を選択</option>';
       sortedCategories().forEach(category => {
+        const info = categoryInfo(category);
         const option = document.createElement("option");
         option.value = category;
-        option.textContent = category;
+        option.textContent = `${info.letter} ${category}`;
         select.appendChild(option);
       });
       const other = document.createElement("option");
@@ -271,39 +286,35 @@
 
     document.getElementById("shopCategoryInput").addEventListener("change", updateNewCategoryVisibility);
 
-    function updateMarker(id, person) {
-      if (!person || typeof person.lat !== "number" || typeof person.lng !== "number") return;
-      const latlng = [person.lat, person.lng];
-      if (!markers[id]) {
-        markers[id] = L.marker(latlng, { icon: makeLetterIcon(person.name) }).addTo(map);
-      } else {
-        markers[id].setLatLng(latlng);
-        markers[id].setIcon(makeLetterIcon(person.name));
-      }
-      markers[id].bindPopup(escapeHtml(person.name || "名前なし"));
-    }
-
     function shopPopupHtml(id, shop) {
       const label = shopLabels[id] ? shopLabels[id].label : "";
       const photo = shop.photoData ? `<img src="${shop.photoData}" alt="${escapeHtml(shop.name)}">` : "";
-      const category = shop.category ? `<div>${escapeHtml(label)} ${escapeHtml(shop.category)}</div>` : "";
       const memo = shop.memo ? `<div>${escapeHtml(shop.memo).replace(/\n/g, "<br>")}</div>` : "";
       const url = shop.url ? `<div><a href="${escapeHtml(shop.url)}" target="_blank" rel="noopener">関連URLを開く</a></div>` : "";
-      return `<div class="shopPopup"><b>${escapeHtml(shop.name || "お店")}</b>${photo}${category}${memo}${url}<button onclick="editShop('${id}')">修正・削除</button></div>`;
+      return `<div class="shopPopup"><b>${escapeHtml(label)} ${escapeHtml(shop.name || "お店")}</b>${photo}${memo}${url}</div>`;
     }
 
     function updateShopMarker(id, shop) {
       if (!shop || typeof shop.lat !== "number" || typeof shop.lng !== "number") return;
-      const latlng = [shop.lat, shop.lng];
       const label = shopLabels[id] || { label: "?", color: "#12805c" };
+      const latlng = [shop.lat, shop.lng];
       if (!shopMarkers[id]) {
         shopMarkers[id] = L.marker(latlng, { icon: makeShopIcon(label.label, label.color) }).addTo(map);
-        shopMarkers[id].on("click", () => editShop(id));
+        shopMarkers[id].on("click", () => selectShop(id, true));
       } else {
         shopMarkers[id].setLatLng(latlng);
         shopMarkers[id].setIcon(makeShopIcon(label.label, label.color));
       }
       shopMarkers[id].bindPopup(shopPopupHtml(id, shop));
+    }
+
+    function updateDraftMarker(latlng, label = "店", color = "#e08000") {
+      if (!draftMarker) {
+        draftMarker = L.marker(latlng, { icon: makeShopIcon(label, color) }).addTo(map);
+      } else {
+        draftMarker.setLatLng(latlng);
+        draftMarker.setIcon(makeShopIcon(label, color));
+      }
     }
 
     function renderShopList() {
@@ -327,31 +338,16 @@
         const label = shopLabels[id] || { label: "", color: "#1769aa" };
         const li = document.createElement("li");
         li.className = "shopItem";
-        li.onclick = function() { editShop(id); };
-        const name = document.createElement("div");
-        name.className = "shopNameButton";
-        name.innerHTML = `<span class="categoryBadge" style="background:${label.color}">${escapeHtml(label.label)}</span>${escapeHtml(shop.name || "お店")}`;
-        const meta = document.createElement("div");
-        meta.className = "shopMeta";
-        meta.textContent = [shop.category, shop.address].filter(Boolean).join(" / ");
-        li.appendChild(name);
-        if (meta.textContent) li.appendChild(meta);
+        li.onclick = function() { selectShop(id, true); };
+        const line1 = document.createElement("div");
+        line1.className = "shopLine1";
+        line1.innerHTML = `<span class="categoryBadge" style="background:${label.color}">${escapeHtml(label.label)}</span><span>${escapeHtml(shop.name || "お店")}</span>`;
+        const line2 = document.createElement("div");
+        line2.className = "shopLine2";
+        line2.textContent = [shop.createdBy ? `設定者: ${shop.createdBy}` : "", shop.memo || ""].filter(Boolean).join(" / ");
+        li.appendChild(line1);
+        if (line2.textContent) li.appendChild(line2);
         ul.appendChild(li);
-      });
-    }
-
-    function listenPeople() {
-      if (!firebaseReady) return;
-      if (unsubscribePeople) unsubscribePeople();
-      unsubscribePeople = onValue(ref(db, `rooms/${ROOM_ID}/people`), snap => {
-        const people = snap.val() || {};
-        Object.keys(markers).forEach(id => {
-          if (!people[id] || typeof people[id].lat !== "number" || typeof people[id].lng !== "number") {
-            map.removeLayer(markers[id]);
-            delete markers[id];
-          }
-        });
-        Object.entries(people).forEach(([id, person]) => updateMarker(id, person));
       });
     }
 
@@ -372,28 +368,22 @@
       });
     }
 
-    function updateCurrentLocationButton() {
-      document.getElementById("currentLocationButton").disabled = !currentPosition;
-    }
-
-    function publishPosition(pos) {
-      currentPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      updateCurrentLocationButton();
-      const myPerson = { name: myName, lat: currentPosition.lat, lng: currentPosition.lng, updatedAt: Date.now() };
-      updateMarker(myId, myPerson);
-      if (firebaseReady) {
-        const myRef = ref(db, `rooms/${ROOM_ID}/people/${myId}`);
-        set(myRef, { name: myName, lat: currentPosition.lat, lng: currentPosition.lng, updatedAt: serverTimestamp() });
-        onDisconnect(myRef).remove();
+    function publishOwnPosition(pos) {
+      const latlng = [pos.coords.latitude, pos.coords.longitude];
+      if (!ownMarker) {
+        ownMarker = L.marker(latlng, { icon: makeOwnIcon(myName) }).addTo(map);
+      } else {
+        ownMarker.setLatLng(latlng);
+        ownMarker.setIcon(makeOwnIcon(myName));
       }
+      ownMarker.bindPopup("現在地");
     }
 
     function startWatchingLocation() {
-      updateCurrentLocationButton();
       if (!navigator.geolocation) return;
       const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
-      navigator.geolocation.getCurrentPosition(publishPosition, () => updateCurrentLocationButton(), options);
-      watchId = navigator.geolocation.watchPosition(publishPosition, () => updateCurrentLocationButton(), options);
+      navigator.geolocation.getCurrentPosition(publishOwnPosition, () => {}, options);
+      watchId = navigator.geolocation.watchPosition(publishOwnPosition, () => {}, options);
     }
 
     async function readPhotoFile(file) {
@@ -428,41 +418,82 @@
       preview.style.display = "block";
     });
 
-    function previewShopLocation(lat, lng, address) {
-      pendingShopLocation = { lat, lng, address };
-      const latlng = [lat, lng];
-      if (!previewMarker) {
-        previewMarker = L.marker(latlng, { icon: makeShopIcon("候補", "#e08000", true) }).addTo(map);
-      } else {
-        previewMarker.setLatLng(latlng);
-      }
-      previewMarker.bindPopup(`<b>登録候補</b><br>${escapeHtml(address || "指定した場所")}`).openPopup();
-      map.setView(latlng, 17);
-      document.getElementById("shopHint").textContent = "候補位置を確認しました。よければ内容を入力して「登録」を押してください。";
+    function centerLatLng() {
+      const c = map.getCenter();
+      return { lat: c.lat, lng: c.lng };
     }
 
-    window.selectShopAtMapCenter = function() {
-      const address = document.getElementById("shopAddressInput").value.trim() || "地図中心";
-      const center = map.getCenter();
-      previewShopLocation(center.lat, center.lng, address);
-    };
+    function setDraftToCenter() {
+      draftLocation = centerLatLng();
+      const label = editingShopId && shopLabels[editingShopId] ? shopLabels[editingShopId] : { label: "店", color: "#e08000" };
+      if (editingShopId && shopMarkers[editingShopId]) {
+        map.removeLayer(shopMarkers[editingShopId]);
+        delete shopMarkers[editingShopId];
+      }
+      updateDraftMarker([draftLocation.lat, draftLocation.lng], label.label, label.color);
+    }
 
-    window.selectShopAtCurrentLocation = function() {
-      if (!currentPosition) return;
-      const address = document.getElementById("shopAddressInput").value.trim() || "現在位置";
-      previewShopLocation(currentPosition.lat, currentPosition.lng, address);
-    };
+    function openShopFormFor(id) {
+      const shop = id ? shops[id] : null;
+      editingShopId = id || null;
+      selectedShopId = id || null;
+      selectedPhotoData = shop?.photoData || "";
+      document.getElementById("shopPanel").style.display = "block";
+      document.body.classList.add("showForm");
+      document.getElementById("shopFormTitle").textContent = id ? "お店を修正・抹消" : "お店を登録";
+      document.getElementById("shopNameInput").value = shop?.name || "";
+      document.getElementById("shopCurrentLabel").textContent = id && shopLabels[id] ? `分類・番号: ${shopLabels[id].label}` : "分類・番号: 登録後に自動採番";
+      populateCategorySelect(shop?.category || "");
+      document.getElementById("shopMemoInput").value = shop?.memo || "";
+      document.getElementById("shopUrlInput").value = shop?.url || "";
+      document.getElementById("shopSaveButton").textContent = id ? "更新" : "登録";
+      document.getElementById("shopDeleteButton").style.display = id ? "block" : "none";
+      const preview = document.getElementById("photoPreview");
+      if (selectedPhotoData) {
+        preview.src = selectedPhotoData;
+        preview.style.display = "block";
+      } else {
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+      }
+    }
+
+    function selectShop(id, openForm) {
+      const shop = shops[id];
+      if (!shop) return;
+      selectedShopId = id;
+      editingShopId = id;
+      draftLocation = { lat: shop.lat, lng: shop.lng };
+      map.setView([shop.lat, shop.lng], 17);
+      if (shopMarkers[id]) shopMarkers[id].openPopup();
+      if (draftMarker) {
+        map.removeLayer(draftMarker);
+        draftMarker = null;
+      }
+      if (openForm) openShopFormFor(id);
+    }
 
     window.openNewShopForm = function() {
       resetShopForm(false);
-      document.getElementById("shopPanel").style.display = "block";
-      document.body.classList.add("showForm");
+      editingShopId = null;
+      selectedShopId = null;
+      setDraftToCenter();
+      openShopFormFor(null);
+    };
+
+    window.moveSelectedShopToCenter = function() {
+      setDraftToCenter();
+      if (editingShopId && shops[editingShopId]) {
+        openShopFormFor(editingShopId);
+      } else if (!document.body.classList.contains("showForm")) {
+        openShopFormFor(null);
+      }
     };
 
     window.saveCurrentShop = async function() {
       const name = document.getElementById("shopNameInput").value.trim();
       if (!name) { alert("店名を入力してください"); return; }
-      if (!pendingShopLocation) { alert("地図中心または現在位置で場所を指定してください。"); return; }
+      if (!draftLocation) setDraftToCenter();
       let category = document.getElementById("shopCategoryInput").value;
       if (category === "__new__") category = document.getElementById("newCategoryInput").value.trim();
       if (!category) { alert("分類を選んでください。"); return; }
@@ -470,13 +501,12 @@
       const now = Date.now();
       const shop = {
         name,
-        address: document.getElementById("shopAddressInput").value.trim() || pendingShopLocation.address || "",
         category,
         memo: document.getElementById("shopMemoInput").value.trim(),
         url: document.getElementById("shopUrlInput").value.trim(),
         photoData: selectedPhotoData,
-        lat: pendingShopLocation.lat,
-        lng: pendingShopLocation.lng,
+        lat: draftLocation.lat,
+        lng: draftLocation.lng,
         createdBy: existing?.createdBy || myName || "",
         createdAtLocal: existing?.createdAtLocal || now,
         updatedAtLocal: now,
@@ -498,38 +528,11 @@
       resetShopForm();
     };
 
-    window.editShop = function(id) {
-      const shop = shops[id];
-      if (!shop) return;
-      editingShopId = id;
-      pendingShopLocation = { lat: shop.lat, lng: shop.lng, address: shop.address || "" };
-      selectedPhotoData = shop.photoData || "";
-      document.getElementById("shopPanel").style.display = "block";
-      document.getElementById("shopFormTitle").textContent = "お店を修正・削除";
-      document.getElementById("shopNameInput").value = shop.name || "";
-      document.getElementById("shopAddressInput").value = shop.address || "";
-      populateCategorySelect(shop.category || "");
-      document.getElementById("shopMemoInput").value = shop.memo || "";
-      document.getElementById("shopUrlInput").value = shop.url || "";
-      document.getElementById("shopSaveButton").textContent = "更新";
-      document.getElementById("shopDeleteButton").style.display = "block";
-      const preview = document.getElementById("photoPreview");
-      if (selectedPhotoData) {
-        preview.src = selectedPhotoData;
-        preview.style.display = "block";
-      } else {
-        preview.removeAttribute("src");
-        preview.style.display = "none";
-      }
-      previewShopLocation(shop.lat, shop.lng, shop.address || shop.name || "");
-      document.body.classList.add("showForm");
-    };
-
     window.deleteEditingShop = async function() {
       if (!editingShopId) return;
       const id = editingShopId;
       const shop = shops[id];
-      if (!shop || !confirm(`「${shop.name || "お店"}」を削除しますか？`)) return;
+      if (!shop || !confirm(`「${shop.name || "お店"}」を抹消しますか？`)) return;
       if (firebaseReady) {
         await remove(ref(db, `rooms/${ROOM_ID}/shops/${id}`));
       } else {
@@ -545,11 +548,12 @@
 
     window.resetShopForm = function(hide = true) {
       editingShopId = null;
-      pendingShopLocation = null;
+      selectedShopId = null;
+      draftLocation = null;
       selectedPhotoData = "";
       document.getElementById("shopFormTitle").textContent = "お店を登録";
       document.getElementById("shopNameInput").value = "";
-      document.getElementById("shopAddressInput").value = "";
+      document.getElementById("shopCurrentLabel").textContent = "分類・番号: 登録後に自動採番";
       populateCategorySelect("");
       document.getElementById("newCategoryInput").value = "";
       document.getElementById("shopMemoInput").value = "";
@@ -557,14 +561,14 @@
       document.getElementById("shopPhotoInput").value = "";
       document.getElementById("shopSaveButton").textContent = "登録";
       document.getElementById("shopDeleteButton").style.display = "none";
-      document.getElementById("shopHint").textContent = "地図を動かして「地図中心」、または位置情報を許可して「現在位置」で場所を指定します。";
       const preview = document.getElementById("photoPreview");
       preview.removeAttribute("src");
       preview.style.display = "none";
-      if (previewMarker) {
-        map.removeLayer(previewMarker);
-        previewMarker = null;
+      if (draftMarker) {
+        map.removeLayer(draftMarker);
+        draftMarker = null;
       }
+      Object.entries(shops || {}).forEach(([id, shop]) => updateShopMarker(id, shop));
       if (hide) {
         document.getElementById("shopPanel").style.display = "none";
         document.body.classList.remove("showForm");
@@ -588,24 +592,18 @@
       document.getElementById("loginPanel").style.display = "none";
       document.getElementById("shopListPanel").style.display = "block";
       initFirebase();
-      listenPeople();
+      remove(ref(db, `rooms/${ROOM_ID}/people`)).catch(e => console.warn(e));
       listenShops();
       renderShopList();
       startWatchingLocation();
     };
 
-    async function backgroundLogout() {
+    window.addEventListener("pagehide", function() {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
-      if (firebaseReady && myName) {
-        try { await remove(ref(db, `rooms/${ROOM_ID}/people/${myId}`)); } catch(e) { console.warn(e); }
-      }
-    }
-
-    window.addEventListener("pagehide", backgroundLogout);
-    window.addEventListener("beforeunload", backgroundLogout);
+    });
   </script>
 </body>
 </html>
