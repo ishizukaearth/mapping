@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ももの会 推し店マップ</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-title" content="ももの会 推し店マップ">
   <meta name="application-name" content="ももの会 推し店マップ">
@@ -60,10 +61,11 @@
     .row { display:flex; gap:8px; align-items:center; }
     .row button { width:auto; flex:1; }
     #shopList { margin:8px 0 0 0; padding-left:0; list-style:none; }
-    .shopItem { border-top:1px solid #e5e5e5; padding:10px 0; cursor:pointer; }
+    .shopItem { border-top:1px solid #e5e5e5; padding:7px 0; cursor:pointer; }
     .shopItem:first-child { border-top:0; }
-    .shopLine1 { display:flex; align-items:center; gap:6px; color:#1769aa; font-weight:bold; }
-    .shopLine2 { margin-top:3px; color:#555; line-height:1.35; font-size:14px; }
+    .shopLine1 { display:flex; align-items:center; gap:6px; color:#1769aa; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .shopLine1 span:last-child { overflow:hidden; text-overflow:ellipsis; }
+    .shopLine2 { margin-top:2px; color:#555; line-height:1.25; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .categoryBadge {
       display:inline-flex; align-items:center; justify-content:center;
       min-width:38px; padding:2px 6px; border-radius:999px;
@@ -300,7 +302,13 @@
       const latlng = [shop.lat, shop.lng];
       if (!shopMarkers[id]) {
         shopMarkers[id] = L.marker(latlng, { icon: makeShopIcon(label.label, label.color) }).addTo(map);
-        shopMarkers[id].on("click", () => selectShop(id, true));
+        shopMarkers[id].on("click", () => {
+          if (selectedShopId === id && document.getElementById("shopListPanel").style.display === "none") {
+            openShopFormFor(id);
+          } else {
+            selectShop(id);
+          }
+        });
       } else {
         shopMarkers[id].setLatLng(latlng);
         shopMarkers[id].setIcon(makeShopIcon(label.label, label.color));
@@ -315,6 +323,28 @@
         draftMarker.setLatLng(latlng);
         draftMarker.setIcon(makeShopIcon(label, color));
       }
+      draftMarker.off("click");
+      draftMarker.on("click", () => openShopFormFor(editingShopId || null));
+    }
+
+    function showListMode() {
+      document.getElementById("shopListPanel").style.display = "block";
+      document.getElementById("shopPanel").style.display = "none";
+      document.body.classList.remove("showForm");
+      if (draftMarker) {
+        map.removeLayer(draftMarker);
+        draftMarker = null;
+      }
+      Object.entries(shops || {}).forEach(([id, shop]) => updateShopMarker(id, shop));
+      selectedShopId = null;
+      editingShopId = null;
+      draftLocation = null;
+    }
+
+    function showMapSelectionMode() {
+      document.getElementById("shopListPanel").style.display = "none";
+      document.getElementById("shopPanel").style.display = "none";
+      document.body.classList.remove("showForm");
     }
 
     function renderShopList() {
@@ -338,13 +368,13 @@
         const label = shopLabels[id] || { label: "", color: "#1769aa" };
         const li = document.createElement("li");
         li.className = "shopItem";
-        li.onclick = function() { selectShop(id, true); };
+        li.onclick = function() { selectShop(id); };
         const line1 = document.createElement("div");
         line1.className = "shopLine1";
         line1.innerHTML = `<span class="categoryBadge" style="background:${label.color}">${escapeHtml(label.label)}</span><span>${escapeHtml(shop.name || "お店")}</span>`;
         const line2 = document.createElement("div");
         line2.className = "shopLine2";
-        line2.textContent = [shop.createdBy ? `設定者: ${shop.createdBy}` : "", shop.memo || ""].filter(Boolean).join(" / ");
+        line2.textContent = `${shop.createdBy ? `【${shop.createdBy}】` : ""}${shop.memo || ""}`;
         li.appendChild(line1);
         if (line2.textContent) li.appendChild(line2);
         ul.appendChild(li);
@@ -458,36 +488,32 @@
       }
     }
 
-    function selectShop(id, openForm) {
+    function selectShop(id) {
       const shop = shops[id];
       if (!shop) return;
       selectedShopId = id;
       editingShopId = id;
       draftLocation = { lat: shop.lat, lng: shop.lng };
+      showMapSelectionMode();
       map.setView([shop.lat, shop.lng], 17);
       if (shopMarkers[id]) shopMarkers[id].openPopup();
       if (draftMarker) {
         map.removeLayer(draftMarker);
         draftMarker = null;
       }
-      if (openForm) openShopFormFor(id);
     }
 
     window.openNewShopForm = function() {
       resetShopForm(false);
       editingShopId = null;
       selectedShopId = null;
+      showMapSelectionMode();
       setDraftToCenter();
-      openShopFormFor(null);
     };
 
     window.moveSelectedShopToCenter = function() {
       setDraftToCenter();
-      if (editingShopId && shops[editingShopId]) {
-        openShopFormFor(editingShopId);
-      } else if (!document.body.classList.contains("showForm")) {
-        openShopFormFor(null);
-      }
+      showMapSelectionMode();
     };
 
     window.saveCurrentShop = async function() {
@@ -526,6 +552,7 @@
         renderShopList();
       }
       resetShopForm();
+      showListMode();
     };
 
     window.deleteEditingShop = async function() {
@@ -544,6 +571,7 @@
         renderShopList();
       }
       resetShopForm();
+      showListMode();
     };
 
     window.resetShopForm = function(hide = true) {
@@ -571,6 +599,7 @@
       Object.entries(shops || {}).forEach(([id, shop]) => updateShopMarker(id, shop));
       if (hide) {
         document.getElementById("shopPanel").style.display = "none";
+        document.getElementById("shopListPanel").style.display = "block";
         document.body.classList.remove("showForm");
       }
     };
